@@ -5,14 +5,14 @@ import type { CaseStatus, Category, CategoryId, Handling, MessageMoment, Support
  * PROVISOIRES : la liste définitive sera fixée par l'analyse de l'historique Freshdesk.
  */
 export const categories: Category[] = [
-  { id: 'acces-connexion', label: 'Accès & connexion', icon: '🔑', hint: 'Pas reçu ses accès, ne peut pas se connecter, nouvel écosystème' },
-  { id: 'paiement-statut', label: 'Paiement & statut membre', icon: '💳', hint: 'Prélèvement, défaut de paiement, statut à vérifier' },
-  { id: 'formation-whop', label: 'Formation / Whop', icon: '🎓', hint: 'Accès Whop, invoice 0 USD, visionnage des vidéos' },
-  { id: 'communaute-circle', label: 'Communauté / Circle', icon: '💬', hint: 'Circle, niveau Advanced, espaces de la communauté' },
-  { id: 'factures-documents', label: 'Factures & documents', icon: '🧾', hint: 'Facture, devis, attestation' },
-  { id: 'compte-membre', label: 'Compte membre', icon: '👤', hint: 'Identification, partage d’accès, informations du compte' },
-  { id: 'technique', label: 'Problème technique', icon: '🛠️', hint: 'Bug, vidéo qui ne se lit pas, plateforme' },
-  { id: 'autre', label: 'Autre demande', icon: '📨', hint: 'Hors sujet, demandes non répertoriées' },
+  { id: 'acces-connexion', filterLabel: 'Accès', label: 'Accès & connexion', icon: '🔑', hint: 'Pas reçu ses accès, ne peut pas se connecter, nouvel écosystème' },
+  { id: 'paiement-statut', filterLabel: 'Paiement', label: 'Paiement & statut membre', icon: '💳', hint: 'Prélèvement, défaut de paiement, statut à vérifier' },
+  { id: 'formation-whop', filterLabel: 'Formation / Whop', label: 'Formation / Whop', icon: '🎓', hint: 'Accès Whop, invoice 0 USD, visionnage des vidéos' },
+  { id: 'communaute-circle', filterLabel: 'Circle', label: 'Communauté / Circle', icon: '💬', hint: 'Circle, niveau Advanced, espaces de la communauté' },
+  { id: 'factures-documents', filterLabel: 'Documents', label: 'Factures & documents', icon: '🧾', hint: 'Facture, devis, attestation' },
+  { id: 'compte-membre', filterLabel: 'Compte', label: 'Compte membre', icon: '👤', hint: 'Identification, partage d’accès, informations du compte' },
+  { id: 'technique', filterLabel: 'Technique', label: 'Problème technique', icon: '🛠', hint: 'Bug, vidéo qui ne se lit pas, plateforme' },
+  { id: 'autre', filterLabel: 'Autre', label: 'Autre demande', icon: '✉️', hint: 'Hors sujet, demandes non répertoriées' },
 ];
 
 export const categoryLabel = (id: CategoryId): string => categories.find((c) => c.id === id)?.label ?? id;

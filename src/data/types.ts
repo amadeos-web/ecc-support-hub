@@ -31,6 +31,8 @@ export type CategoryId =
 export interface Category {
   id: CategoryId;
   label: string;
+  /** Libellé court du filtre compact de « Traiter une demande ». */
+  filterLabel: string;
   icon: string;
   hint: string;
 }

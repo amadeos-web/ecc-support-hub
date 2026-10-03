@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
-import { categories, getCase, supportCases, type CategoryId } from '../data';
+import { caseStatus, categories, getCase, getCategory, statusInfo, supportCases, type CategoryId } from '../data';
 import { href } from '../lib/router';
 import { searchCases } from '../lib/caseSearch';
 import { CaseSheet } from '../components/CaseSheet';
-import { EmptyState, StatusBadge } from '../components/ui';
+import { EmptyState } from '../components/ui';
 
 /** Page principale : « Que demande le membre ? » → cas → fiche opérationnelle. */
 export function TreatRequestPage({ caseId }: { caseId?: string }) {
@@ -25,12 +25,9 @@ function TreatHome() {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<CategoryId | null>(null);
 
-  const results = useMemo(() => {
-    const base = category ? supportCases.filter((c) => c.category === category) : supportCases;
-    return searchCases(base, query);
-  }, [query, category]);
-  const showResults = query.trim() !== '' || category !== null;
-  const activeCategory = categories.find((c) => c.id === category);
+  const matches = useMemo(() => searchCases(supportCases, query), [query]);
+  const results = category ? matches.filter((c) => c.category === category) : matches;
+  const countFor = (id: CategoryId) => matches.filter((c) => c.category === id).length;
 
   return (
     <div className="page treat-home">
@@ -53,64 +50,57 @@ function TreatHome() {
         </div>
       </section>
 
-      {!showResults && (
-        <section className="cat-grid">
-          {categories.map((cat) => {
-            const n = supportCases.filter((c) => c.category === cat.id).length;
+      <div className="filter-bar" role="group" aria-label="Filtrer par catégorie">
+        <button type="button" className={`filter-chip ${category === null ? 'is-active' : ''}`} onClick={() => setCategory(null)}>
+          Tous <span className="filter-count">{matches.length}</span>
+        </button>
+        {categories.map((cat) => {
+          const n = countFor(cat.id);
+          return (
+            <button
+              key={cat.id}
+              type="button"
+              className={`filter-chip ${category === cat.id ? 'is-active' : ''} ${n === 0 ? 'is-empty' : ''}`}
+              onClick={() => setCategory(category === cat.id ? null : cat.id)}
+            >
+              {cat.icon} {cat.filterLabel} <span className="filter-count">{n}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {results.length === 0 ? (
+        <EmptyState>
+          <p>Aucun cas ne correspond{query ? ` à « ${query} »` : ''}.</p>
+          <a className="btn btn-secondary" href={href('traiter', 'cas-membre-non-identifie')}>
+            Demander les informations au membre
+          </a>
+        </EmptyState>
+      ) : (
+        <ul className="case-grid">
+          {results.map((c) => {
+            const cat = getCategory(c.category);
             return (
-              <button key={cat.id} type="button" className={`cat-card ${n === 0 ? 'is-empty' : ''}`} onClick={() => setCategory(cat.id)}>
-                <span className="cat-icon">{cat.icon}</span>
-                <span className="cat-label">{cat.label}</span>
-                <span className="cat-hint">{cat.hint}</span>
-                <span className="cat-count">{n === 0 ? 'Aucun cas pour l’instant' : `${n} cas`}</span>
-              </button>
+              <li key={c.id}>
+                <a href={href('traiter', c.id)} className="case-tile">
+                  <span className="case-tile-icon" aria-hidden>
+                    {cat?.icon}
+                  </span>
+                  <span className="case-tile-body">
+                    <span className="case-tile-title">{c.shortTitle}</span>
+                    <span className="case-tile-cat">{cat?.label}</span>
+                  </span>
+                  <span className="case-tile-status" title={statusInfo[caseStatus(c)].label} aria-label={statusInfo[caseStatus(c)].label}>
+                    {statusInfo[caseStatus(c)].icon}
+                  </span>
+                  <span className="case-tile-arrow" aria-hidden>
+                    →
+                  </span>
+                </a>
+              </li>
             );
           })}
-        </section>
-      )}
-
-      {showResults && (
-        <section className="results">
-          <div className="results-head">
-            <h2>
-              {activeCategory ? `${activeCategory.icon} ${activeCategory.label}` : 'Résultats'}
-              <span className="muted"> · {results.length} cas</span>
-            </h2>
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={() => {
-                setCategory(null);
-                setQuery('');
-              }}
-            >
-              ← Toutes les catégories
-            </button>
-          </div>
-          {results.length === 0 ? (
-            <EmptyState>
-              <p>Aucun cas ne correspond{query ? ` à « ${query} »` : ''}.</p>
-              <a className="btn btn-secondary" href={href('traiter', 'cas-membre-non-identifie')}>
-                Demander les informations au membre
-              </a>
-            </EmptyState>
-          ) : (
-            <ul className="case-rows">
-              {results.map((c) => (
-                <li key={c.id}>
-                  <a href={href('traiter', c.id)} className="case-row">
-                    <span className="case-row-title">{c.shortTitle}</span>
-                    <span className="case-row-problem">{c.problem}</span>
-                    <span className="case-row-meta">
-                      <StatusBadge supportCase={c} />
-                      {c.frequency !== undefined && <span className="muted small">{c.frequency} tickets</span>}
-                    </span>
-                  </a>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+        </ul>
       )}
     </div>
   );
