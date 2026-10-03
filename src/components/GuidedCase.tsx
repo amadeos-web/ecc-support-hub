@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { caseGuidance, getCase, getInternalMessage, getRole, getTemplate, NOT_IN_ORDER_CASE_ID, roadmapFor, roadmapLabels as L, statusCheckExempt, type RoadmapBlock, type SupportCase } from '../data';
+import { caseGuidance, getCase, getInternalMessage, getRole, getTemplate, KYC_CASE_ID, kycRequiredIds, NOT_IN_ORDER_CASE_ID, roadmapFor, roadmapLabels as L, statusCheckExempt, type RoadmapBlock, type SupportCase } from '../data';
 import { useMemberVars } from '../lib/memberVars';
 import { missingVariables, renderTemplate, variableLabel } from '../lib/templateEngine';
 import { href } from '../lib/router';
@@ -26,12 +26,16 @@ export function GuidedCase({ supportCase: c }: { supportCase: SupportCase }) {
   const { vars, setVar } = useMemberVars();
   const [active, setActive] = useState(0);
   const [choice, setChoice] = useState<'ok' | 'ko' | null>(null);
+  const [kyc, setKyc] = useState<'ok' | 'ko' | null>(null);
   const [openBranch, setOpenBranch] = useState<string | null>(null);
   const [checked, setChecked] = useState<string[]>([]);
   const refs = useRef<Record<string, HTMLElement | null>>({});
   const first = useRef(true);
 
   const gated = !statusCheckExempt.has(c.id);
+  const needsKyc = kycRequiredIds.has(c.id);
+  /** Quand l'étape KYC existe, ses points (déjà couverts) ne sont pas répétés ailleurs. */
+  const notKyc = (t: string) => !needsKyc || !/KYC/i.test(t);
   const guidance = caseGuidance[c.id] ?? {};
   const statusMsg = getInternalMessage('int-compta-acces');
   const identity = ['prenom', 'nom', 'email'] as const;
@@ -45,16 +49,16 @@ export function GuidedCase({ supportCase: c }: { supportCase: SupportCase }) {
   const renderBlock = (b: RoadmapBlock, i: number): ReactNode => {
     switch (b.kind) {
       case 'ask': {
-        const items = gated ? c.infoToCollect.filter((x) => !IDENTITY_ASKS.includes(x)) : c.infoToCollect;
+        const items = (gated ? c.infoToCollect.filter((x) => !IDENTITY_ASKS.includes(x)) : c.infoToCollect).filter(notKyc);
         return items.length ? <Checklist key={i} label={L.blocks.ask} items={items} checked={checked} onToggle={toggle} /> : null;
       }
       case 'checks':
-        return c.checks.length ? <Checklist key={i} label={L.blocks.check} items={c.checks} checked={checked} onToggle={toggle} /> : null;
+        return c.checks.filter(notKyc).length ? <Checklist key={i} label={L.blocks.check} items={c.checks.filter(notKyc)} checked={checked} onToggle={toggle} /> : null;
       case 'branches':
-        return guidance.branches?.length ? (
+        return guidance.branches?.filter((br) => notKyc(br.when)).length ? (
           <div key={i} className="rm-branches">
             <div className="rm-sub">{L.blocks.branches}</div>
-            {guidance.branches.map((br) => {
+            {guidance.branches.filter((br) => notKyc(br.when)).map((br) => {
               const tpl = getTemplate(br.messageId);
               const target = getCase(br.caseId);
               return (
@@ -222,8 +226,45 @@ export function GuidedCase({ supportCase: c }: { supportCase: SupportCase }) {
     setChoice(v);
     setActive(pre.length);
   }
+  function chooseKyc(v: 'ok' | 'ko') {
+    setKyc(v);
+    setActive(pre.length + 1);
+  }
 
   const koReplaces = gated && choice === 'ko' && c.id !== NOT_IN_ORDER_CASE_ID;
+  const kycTarget = getCase(KYC_CASE_ID);
+  const kycStep: Step = {
+    key: 'kyc',
+    title: L.kyc.title,
+    hint: L.kyc.hint,
+    body: (
+      <>
+        <div className="rm-choice">
+          <button type="button" className={`btn ${kyc === 'ok' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => chooseKyc('ok')}>
+            {L.kyc.ok}
+          </button>
+          <button type="button" className={`btn ${kyc === 'ko' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => chooseKyc('ko')}>
+            {L.kyc.ko}
+          </button>
+        </div>
+        {kyc && (
+          <button type="button" className="rm-link" onClick={() => { setKyc(null); setActive(pre.length); }}>
+            {L.kyc.change}
+          </button>
+        )}
+      </>
+    ),
+  };
+  const kycKo: Step = {
+    key: 'kycKo',
+    title: L.kyc.koTitle,
+    hint: L.kyc.koHint,
+    body: kycTarget && c.id !== KYC_CASE_ID && (
+      <a className="rm-link" href={href('traiter', kycTarget.id)}>
+        {kycTarget.shortTitle} →
+      </a>
+    ),
+  };
   const end: Step = {
     key: 'end',
     title: L.end.title,
@@ -247,10 +288,13 @@ export function GuidedCase({ supportCase: c }: { supportCase: SupportCase }) {
           ),
         },
       ]
-    : [
-        ...content.map((s, n) => ({ ...s, cta: { label: n === content.length - 1 ? L.cta.last : L.cta.next } })),
-        end,
-      ];
+    : needsKyc && kyc === 'ko'
+      ? [kycStep, kycKo]
+      : [
+          ...(needsKyc ? [kycStep] : []),
+          ...content.map((s, n) => ({ ...s, cta: { label: n === content.length - 1 ? L.cta.last : L.cta.next } })),
+          end,
+        ];
   const list = [...pre, ...rest];
   const activeIdx = Math.min(active, list.length - 1);
   const activeKey = list[activeIdx].key;

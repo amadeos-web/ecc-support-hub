@@ -16,6 +16,15 @@ export const roadmapLabels = {
     ko: 'Pas en règle',
     change: 'Changer la réponse',
   },
+  kyc: {
+    title: 'Vérifier le KYC du membre',
+    hint: 'Confirme que le membre est bien enregistré et validé dans le KYC avant de poursuivre.',
+    ok: 'KYC validé',
+    ko: 'KYC non validé',
+    change: 'Changer la réponse',
+    koTitle: 'Attendre la régularisation du KYC',
+    koHint: 'Ne procède pas à l’accès, à la réinvitation ni au rétablissement tant que le KYC n’est pas validé.',
+  },
   notInOrder: { title: 'Traiter la situation d’un membre pas en règle', hint: 'Ne poursuis pas le traitement normal.' },
   blocks: {
     ask: 'À demander au membre',

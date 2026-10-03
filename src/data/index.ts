@@ -9,7 +9,7 @@ import { roles } from './roles';
 
 export * from './types';
 export * from './categories';
-export { caseGuidance, statusCheckExempt, NOT_IN_ORDER_CASE_ID } from './caseGuidance';
+export { caseGuidance, statusCheckExempt, kycRequiredIds, KYC_CASE_ID, NOT_IN_ORDER_CASE_ID } from './caseGuidance';
 export type { CaseGuidance } from './caseGuidance';
 export { roadmapLabels } from './roadmap';
 export { roadmapFor } from './caseRoadmaps';

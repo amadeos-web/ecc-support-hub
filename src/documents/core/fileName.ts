@@ -14,7 +14,7 @@ export type DocumentKind = 'Facture' | 'Devis' | 'Attestation';
 
 /** Facture_ECC_ECC-2026-0001_jean-dupont.pdf */
 export function buildDocumentFileName(kind: DocumentKind, numero: string, clientName: string): string {
-  const num = slugify(numero) || 'sans-numero';
+  const num = slugify(numero) || (kind === 'Attestation' ? '' : 'sans-numero');
   const client = slugify(clientName, { lower: true }) || 'client';
-  return `${kind}_ECC_${num}_${client}.pdf`;
+  return [kind, 'ECC', num, client].filter(Boolean).join('_') + '.pdf';
 }

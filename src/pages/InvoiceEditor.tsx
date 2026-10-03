@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { freshIssuerProfile } from '../data/issuerProfile';
 import { invoiceTemplate } from '../data/invoiceTemplate';
 import {
@@ -10,24 +10,27 @@ import {
   exampleInvoiceForm,
   newLine,
   type ClientForm,
-  type InvoiceData,
   type InvoiceForm,
   type LineForm,
 } from '../documents/invoice/model';
 import type { IssuerProfile } from '../documents/core/issuer';
-import type { PDFDocumentProxy } from 'pdfjs-dist';
+import { PdfPreview } from '../components/PdfPreview';
+import { PdfExportStatus, usePdfExport } from '../components/PdfExport';
 import { issuerLines } from '../documents/pdf/blocks';
 import eccLogoMercure from '../assets/ecc-logo-mercure.png';
 import { createLocalNumberStore, formatInvoiceNumber, proposeInvoiceNumber } from '../documents/core/numbering';
 import { formatMoney, formatRate } from '../documents/core/money';
 import { buildDocumentFileName } from '../documents/core/fileName';
 import { safeStorage } from '../documents/core/storage';
-import { downloadBlob } from '../documents/pdf/download';
 
 const DESCRIPTION_PRESETS = [invoiceTemplate.defaultDescription, 'Accompagnement', 'Autre prestation'];
 const RATE_PRESETS = ['0', '6', '12', '21', '5,5', '10', '20'];
 
 const loadPdfRenderer = () => import('../documents/pdf/render');
+
+/** Où se corrige chaque point bloquant. */
+const anchorOf = (key: string) => (key.startsWith('issuer.') ? 'sec-emetteur' : key.startsWith('client.') ? 'sec-destinataire' : key.startsWith('lines') ? 'sec-prestation' : key === 'paymentConfirmed' ? 'sec-confirmation' : 'sec-facture');
+const whereOf = (key: string) => ({ 'sec-emetteur': 'section A, Émetteur', 'sec-destinataire': 'section B, Destinataire', 'sec-prestation': 'section D, Prestation', 'sec-confirmation': 'case de confirmation du règlement', 'sec-facture': 'section C, Facture' })[anchorOf(key)];
 
 export function InvoiceEditor() {
   const [form, setForm] = useState<InvoiceForm>(emptyInvoiceForm);
@@ -36,7 +39,8 @@ export function InvoiceEditor() {
   const [issuerUnlocked, setIssuerUnlocked] = useState(false);
   const [confirmUnlock, setConfirmUnlock] = useState(false);
   const [showErrors, setShowErrors] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const exporter = usePdfExport();
+  const busy = exporter.busy;
   const [notice, setNotice] = useState<{ kind: 'ok' | 'error' | 'info'; text: string } | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const summaryRef = useRef<HTMLDivElement>(null);
@@ -79,26 +83,17 @@ export function InvoiceEditor() {
     setPreviewOpen(true);
   };
 
+  const makeBlob = () => loadPdfRenderer().then((m) => m.renderInvoicePdfBlob(build.draft));
+
   const onGenerate = async () => {
     if (!build.isValid) {
-      flash('error', form.paymentConfirmed ? 'Le PDF n’a pas été généré : corrige les champs signalés.' : 'Le PDF n’a pas été généré : confirme d’abord la réception du règlement intégral.');
       showErrorsAndScroll();
       return;
     }
     if (numberAlreadyUsed && !window.confirm(`Le numéro ${form.number.trim()} a déjà servi à générer un PDF dans ce navigateur.\nGénérer quand même ?`)) return;
-    setBusy(true);
     setNotice(null);
-    try {
-      const { renderInvoicePdfBlob } = await loadPdfRenderer();
-      const blob = await renderInvoicePdfBlob(build.draft);
-      downloadBlob(blob, fileName);
-      numberStore.markUsed(form.number);
-      flash('ok', `PDF généré et téléchargé : ${fileName}`);
-    } catch {
-      flash('error', 'La génération du PDF a échoué. Réessaie ; si le problème persiste, vérifie le logo (PNG ou JPEG).');
-    } finally {
-      setBusy(false);
-    }
+    const delivery = await exporter.run(makeBlob, fileName);
+    if (delivery && delivery.status !== 'failed') numberStore.markUsed(form.number);
   };
 
   const onReset = () => {
@@ -107,6 +102,7 @@ export function InvoiceEditor() {
     lockIssuer();
     setShowErrors(false);
     setNotice(null);
+    exporter.clear();
   };
 
   const onLogo = (file: File | undefined) => {
@@ -124,7 +120,7 @@ export function InvoiceEditor() {
         <button type="button" className="btn btn-secondary" onClick={onPreview}>
           Prévisualiser
         </button>
-        <button type="button" className="btn btn-primary" onClick={onGenerate} disabled={busy || !form.paymentConfirmed} title={form.paymentConfirmed ? undefined : 'Confirme d’abord la réception du règlement intégral'}>
+        <button type="button" className="btn btn-primary" onClick={onGenerate} disabled={busy || !build.isValid} title={build.isValid ? undefined : 'Complète d’abord les points listés sous le résumé'}>
           {busy ? 'Génération…' : 'Générer le PDF'}
         </button>
         <button type="button" className="btn btn-ghost" onClick={onReset}>
@@ -135,6 +131,8 @@ export function InvoiceEditor() {
           Remplir un exemple
         </button>
       </div>
+
+      <PdfExportStatus result={exporter.result} onAgain={exporter.again} onClose={exporter.clear} />
 
       {notice && (
         <div className={`notice notice-${notice.kind}`} role="status">
@@ -160,7 +158,7 @@ export function InvoiceEditor() {
           )}
 
           {/* A. Émetteur */}
-          <section className="form-card is-open">
+          <section id="sec-emetteur" className="form-card is-open">
             <header className="form-card-head">
               <h3>
                 <span className="step">A</span> Émetteur
@@ -254,7 +252,7 @@ export function InvoiceEditor() {
           </section>
 
           {/* B. Destinataire */}
-          <section className="form-card is-open">
+          <section id="sec-destinataire" className="form-card is-open">
             <header className="form-card-head">
               <h3>
                 <span className="step">B</span> Destinataire
@@ -303,7 +301,7 @@ export function InvoiceEditor() {
           </section>
 
           {/* C. Facture */}
-          <section className="form-card is-open">
+          <section id="sec-facture" className="form-card is-open">
             <header className="form-card-head">
               <h3>
                 <span className="step">C</span> Facture
@@ -375,7 +373,7 @@ export function InvoiceEditor() {
           </section>
 
           {/* D. Prestation */}
-          <section className="form-card is-open">
+          <section id="sec-prestation" className="form-card is-open">
             <header className="form-card-head">
               <h3>
                 <span className="step">D</span> Prestation
@@ -481,16 +479,27 @@ export function InvoiceEditor() {
               <span className="muted small">Montants saisis en {form.priceMode}</span>
               {build.isValid ? <span className="ok-text small">Prête à générer</span> : <span className="warn-text small">{errorList.length} point(s) à compléter</span>}
             </div>
-            <label className={`confirm-box ${form.paymentConfirmed ? 'is-checked' : ''} ${err('paymentConfirmed') ? 'is-invalid' : ''}`}>
+            <label id="sec-confirmation" className={`confirm-box ${form.paymentConfirmed ? 'is-checked' : ''} ${err('paymentConfirmed') ? 'is-invalid' : ''}`}>
               <input type="checkbox" checked={form.paymentConfirmed} onChange={(e) => set('paymentConfirmed', e.target.checked)} />
               <span>{invoiceTemplate.paymentConfirmation}</span>
             </label>
-            <button type="button" className="btn btn-primary sum-generate" onClick={onGenerate} disabled={busy || !form.paymentConfirmed} title={form.paymentConfirmed ? undefined : 'Confirme d’abord la réception du règlement intégral'}>
+            <button type="button" className="btn btn-primary sum-generate" onClick={onGenerate} disabled={busy || !build.isValid} title={build.isValid ? undefined : 'Complète d’abord les points listés sous le résumé'}>
               {busy ? 'Génération…' : 'Générer le PDF'}
             </button>
-            {!form.paymentConfirmed && <span className="muted small">Une facture n’est émise qu’après règlement intégral.</span>}
+            {!build.isValid && (
+              <ul className="todo-list" aria-label="Points à compléter">
+                {Object.entries(build.errors).map(([key, message]) => (
+                  <li key={key}>
+                    <a href={`#${anchorOf(key)}`} onClick={(e) => { e.preventDefault(); document.getElementById(anchorOf(key))?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }}>
+                      {message}
+                    </a>
+                    <span className="muted"> — {whereOf(key)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
-          <PdfPreview data={build.draft} />
+          <PdfPreview docKey={build.draft} make={makeBlob} />
           <p className="muted small">Fichier : {fileName}</p>
         </aside>
       </div>
@@ -501,7 +510,7 @@ export function InvoiceEditor() {
             <div className="modal-bar">
               <span>Aperçu exact du PDF{build.isValid ? '' : ' — brouillon incomplet'}</span>
               <div className="modal-bar-actions">
-                <button type="button" className="btn btn-primary btn-small" onClick={onGenerate} disabled={busy || !form.paymentConfirmed} title={form.paymentConfirmed ? undefined : 'Confirme d’abord la réception du règlement intégral'}>
+                <button type="button" className="btn btn-primary btn-small" onClick={onGenerate} disabled={busy || !build.isValid} title={build.isValid ? undefined : 'Complète d’abord les points listés sous le résumé'}>
                   Générer le PDF
                 </button>
                 <button type="button" className="btn btn-ghost btn-small" onClick={() => setPreviewOpen(false)}>
@@ -509,7 +518,7 @@ export function InvoiceEditor() {
                 </button>
               </div>
             </div>
-            <PdfPreview data={build.draft} large onEscape={() => setPreviewOpen(false)} />
+            <PdfPreview docKey={build.draft} make={makeBlob} large onEscape={() => setPreviewOpen(false)} />
           </div>
         </div>
       )}
@@ -534,88 +543,4 @@ function F({ label, required, error, hint, wide, children }: { label: string; re
 
 function FieldError({ text }: { text?: string }) {
   return text ? <span className="field-error">{text}</span> : null;
-}
-
-/* ---------- Aperçu : le vrai PDF, rendu localement ---------- */
-
-function PdfPreview({ data, large = false, onEscape }: { data: InvoiceData; large?: boolean; onEscape?: () => void }) {
-  const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
-  const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
-  const [width, setWidth] = useState(0);
-  const frameRef = useRef<HTMLDivElement>(null);
-
-  // Rendu du PDF à chaque changement de données (légère temporisation pendant la saisie).
-  useEffect(() => {
-    let cancelled = false;
-    setState((s) => (s === 'ready' ? 'ready' : 'loading'));
-    const timer = window.setTimeout(async () => {
-      try {
-        const [{ renderInvoicePdfBlob }, { loadPdf, disposePdf }] = await Promise.all([loadPdfRenderer(), import('../documents/pdf/pdfPages')]);
-        const pdf = await loadPdf(await renderInvoicePdfBlob(data));
-        if (cancelled) return disposePdf(pdf);
-        setDoc((prev) => {
-          // L'ancien document n'est libéré qu'une fois le nouveau affiché.
-          if (prev) window.setTimeout(() => disposePdf(prev), 1000);
-          return pdf;
-        });
-        setState('ready');
-      } catch {
-        if (!cancelled) setState('error');
-      }
-    }, large ? 0 : 450);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [data, large]);
-
-  const docRef = useRef<PDFDocumentProxy | null>(null);
-  docRef.current = doc;
-  useEffect(() => () => void (docRef.current && import('../documents/pdf/pdfPages').then((m) => m.disposePdf(docRef.current!))), []);
-
-  // Largeur disponible : les pages s'adaptent au cadre.
-  useEffect(() => {
-    const el = frameRef.current;
-    if (!el) return;
-    const update = () => setWidth(Math.floor(el.clientWidth));
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
-  useEffect(() => {
-    if (!onEscape) return;
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onEscape();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onEscape]);
-
-  return (
-    <div ref={frameRef} className={`pdf-frame ${large ? 'is-large' : ''}`}>
-      {doc && width > 0 && (
-        <div className="pdf-pages" aria-label="Aperçu de la facture">
-          {Array.from({ length: doc.numPages }, (_, i) => (
-            <PdfPageCanvas key={`${doc.fingerprints[0]}-${i}`} doc={doc} page={i + 1} width={width} />
-          ))}
-        </div>
-      )}
-      {state === 'loading' && !doc && <div className="pdf-status">Préparation de l’aperçu…</div>}
-      {state === 'error' && <div className="pdf-status">L’aperçu n’a pas pu être généré. Réessaie ; si le problème persiste, vérifie le logo (PNG ou JPEG).</div>}
-    </div>
-  );
-}
-
-function PdfPageCanvas({ doc, page, width }: { doc: PDFDocumentProxy; page: number; width: number }) {
-  const ref = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    let cancelled = false;
-    import('../documents/pdf/pdfPages').then(({ renderPage }) => {
-      if (!cancelled && ref.current) renderPage(doc, page, ref.current, width).catch((e) => console.error('pdf-page', e));
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [doc, page, width]);
-  return <canvas ref={ref} className="pdf-page" />;
 }

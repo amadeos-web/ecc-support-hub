@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { caseGuidance, roadmapFor, supportCases } from '.';
+import { caseGuidance, kycRequiredIds, roadmapFor, supportCases } from '.';
 
 describe('roadmaps des cas : aucune information du process ne disparaît', () => {
   it('chaque étape du process est placée dans la roadmap, une seule fois, dans l’ordre', () => {
@@ -30,6 +30,19 @@ describe('roadmaps des cas : aucune information du process ne disparaît', () =>
     for (const c of supportCases) {
       const titles = roadmapFor(c).map((s) => s.title);
       expect(new Set(titles).size, c.id).toBe(titles.length);
+    }
+  });
+  it('KYC : aucun cas qui donne ou rétablit un accès n’échappe au contrôle KYC (hors cas déjà dédiés au KYC)', () => {
+    const kycNative = new Set(['cas-absent-base-kyc', 'cas-verification-kyc']);
+    for (const c of supportCases) {
+      const givesAccess = c.steps.some((s) => s.owner === 'gestion-acces');
+      if (givesAccess && !kycNative.has(c.id)) expect(kycRequiredIds.has(c.id), c.id).toBe(true);
+    }
+    for (const id of kycRequiredIds) expect(supportCases.some((c) => c.id === id), id).toBe(true);
+  });
+  it('KYC : pas ajouté aux cas sans accès à donner (vidéos, documents, paiements…)', () => {
+    for (const id of ['cas-lecture-videos', 'cas-video-telephone', 'cas-facture', 'cas-devis', 'cas-attestation', 'cas-date-prelevement', 'cas-remboursement', 'cas-plusieurs-appareils', 'cas-autre-bug', 'cas-utilisation-circle']) {
+      expect(kycRequiredIds.has(id), id).toBe(false);
     }
   });
 });

@@ -18,6 +18,25 @@ const MANAGER = 'validation d’un responsable nécessaire';
 /** Cas sans contrôle du statut membre : la personne n'est pas (encore) un membre identifié qui demande de l'aide. */
 export const statusCheckExempt = new Set(['cas-prospect', 'cas-hors-sujet', 'cas-membre-non-identifie']);
 
+/**
+ * Cas où le KYC doit être vérifié AVANT toute action qui donne ou rétablit un accès :
+ * invitation / réinvitation, accès retiré ou perdu, accès Circle / Whop, changement d'adresse email.
+ * Règle : pas de KYC = pas d'accès. Non ajouté aux cas sans accès à donner (vidéos, documents, paiements…).
+ */
+export const kycRequiredIds = new Set([
+  'cas-acces-v2-non-recu',
+  'cas-invitation-whop-0usd',
+  'cas-whop-payant-v1',
+  'cas-acces-actif-mauvais-compte',
+  'cas-desabonnement-accidentel',
+  'cas-acces-perdu-appareil',
+  'cas-acces-retire-sans-explication',
+  'cas-defaut-paiement',
+]);
+
+/** Cas documenté pour un membre absent du KYC (envoi du lien KYC). */
+export const KYC_CASE_ID = 'cas-absent-base-kyc';
+
 /** Cas du référentiel à appliquer quand le membre n'est pas en règle. */
 export const NOT_IN_ORDER_CASE_ID = 'cas-defaut-paiement';
 

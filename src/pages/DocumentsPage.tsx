@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { attestationStatuses, currencies, documentTypes, getDocumentType, vatRates } from '../data';
 import { href } from '../lib/router';
 import { formatMoney, lineTotalHT, totalsFromLines } from '../lib/documentCalc';
@@ -12,9 +12,12 @@ import {
   type CustomerInfo,
   type QuoteModel,
 } from '../documents/models';
-import { AttestationPreview, QuotePreview } from '../documents/Previews';
+import { PdfPreview } from '../components/PdfPreview';
+import { PdfExportStatus, usePdfExport } from '../components/PdfExport';
+import { freshIssuerProfile } from '../data/issuerProfile';
+import { attestationIssues, quoteIssues } from '../documents/otherDocs';
+import { buildDocumentFileName } from '../documents/core/fileName';
 import { InvoiceEditor } from './InvoiceEditor';
-import { PDF_ENGINE_READY } from '../documents/pdf';
 import { PageHeader } from '../components/ui';
 
 export function DocumentsPage({ typeId }: { typeId?: string }) {
@@ -22,6 +25,8 @@ export function DocumentsPage({ typeId }: { typeId?: string }) {
   const [quote, setQuote] = useState<QuoteModel>(emptyQuote);
   const [attestation, setAttestation] = useState<AttestationModel>(emptyAttestation);
   const [fullPreview, setFullPreview] = useState(false);
+  const issuer = useMemo(freshIssuerProfile, []);
+  const exporter = usePdfExport();
 
   useEffect(() => {
     if (!fullPreview) return;
@@ -39,7 +44,16 @@ export function DocumentsPage({ typeId }: { typeId?: string }) {
     if (type === 'attestation') setAttestation(emptyAttestation());
   };
 
-  const preview = type === 'devis' ? <QuotePreview m={quote} /> : <AttestationPreview m={attestation} />;
+  const issues = type === 'devis' ? quoteIssues(quote) : attestationIssues(attestation);
+  const make = () =>
+    import('../documents/pdf/render').then((r) => (type === 'devis' ? r.renderQuotePdfBlob(quote, issuer) : r.renderAttestationPdfBlob(attestation, issuer)));
+  const fileName =
+    type === 'devis'
+      ? buildDocumentFileName('Devis', quote.numeroDevis, quote.societe || `${quote.prenom} ${quote.nom}`)
+      : buildDocumentFileName('Attestation', '', `${attestation.prenom} ${attestation.nom}`);
+  const docKey = type === 'devis' ? quote : attestation;
+  const generate = () => issues.length === 0 && exporter.run(make, fileName);
+  const preview = <PdfPreview docKey={docKey} make={make} />;
 
   return (
     <div className="page">
@@ -65,10 +79,11 @@ export function DocumentsPage({ typeId }: { typeId?: string }) {
         <button
           type="button"
           className="btn btn-secondary"
-          disabled={!PDF_ENGINE_READY}
-          title="L'export PDF n'est pas encore connecté (V1)"
+          disabled={exporter.busy || issues.length > 0}
+          title={issues.length > 0 ? 'Complète d’abord les points listés ci-dessous' : undefined}
+          onClick={generate}
         >
-          Générer le PDF {!PDF_ENGINE_READY && <span className="badge badge-todo">À connecter</span>}
+          {exporter.busy ? 'Génération…' : 'Générer le PDF'}
         </button>
         <span className="spacer" />
         <button type="button" className="btn btn-ghost" onClick={fillDemo}>
@@ -78,6 +93,18 @@ export function DocumentsPage({ typeId }: { typeId?: string }) {
           Vider le formulaire
         </button>
       </div>
+
+      <PdfExportStatus result={exporter.result} onAgain={exporter.again} onClose={exporter.clear} />
+      {issues.length > 0 && (
+        <ul className="todo-list todo-inline" aria-label="Points à compléter">
+          {issues.map((i) => (
+            <li key={i.message}>
+              {i.message}
+              <span className="muted"> — {i.section}</span>
+            </li>
+          ))}
+        </ul>
+      )}
 
       <div className="doc-layout">
         <div className="doc-form">
@@ -96,7 +123,7 @@ export function DocumentsPage({ typeId }: { typeId?: string }) {
                 Fermer (Échap)
               </button>
             </div>
-            {preview}
+            <PdfPreview docKey={docKey} make={make} large />
           </div>
         </div>
       )}
