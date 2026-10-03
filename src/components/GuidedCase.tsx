@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { caseGuidance, getCase, getInternalMessage, getRole, getTemplate, NOT_IN_ORDER_CASE_ID, roadmapLabels as L, type SupportCase } from '../data';
+import { caseGuidance, getCase, getInternalMessage, getRole, getTemplate, NOT_IN_ORDER_CASE_ID, roadmapFor, roadmapLabels as L, statusCheckExempt, type RoadmapBlock, type SupportCase } from '../data';
 import { useMemberVars } from '../lib/memberVars';
 import { missingVariables, renderTemplate, variableLabel } from '../lib/templateEngine';
 import { href } from '../lib/router';
@@ -7,12 +7,20 @@ import { CopyButton } from './ui';
 import { TemplateCard } from './TemplateCard';
 import { TemplateText } from './TemplateText';
 
-type StepId = 'identify' | 'status' | 'result' | 'treat' | 'reply' | 'end';
-const ORDER: StepId[] = ['identify', 'status', 'result', 'treat', 'reply', 'end'];
+interface Step {
+  key: string;
+  title: string;
+  hint?: string;
+  body?: ReactNode;
+  cta?: { label: string; disabled?: boolean };
+}
+
+const IDENTITY_ASKS = ['Prénom', 'Nom', 'Email', 'Email utilisé lors de l’inscription'];
 
 /**
- * Parcours guidé : la feuille de route COMPLÈTE est visible dès l'ouverture.
- * L'étape active est contrastée, les suivantes restent lisibles (atténuées), les terminées s'effacent.
+ * Roadmap d'un cas : étapes construites depuis les données du cas (data/caseRoadmaps.ts),
+ * TOUTES visibles dès l'ouverture. L'étape active est contrastée, les suivantes restent lisibles,
+ * les terminées s'effacent. Le retour de la comptabilité adapte la suite (en règle / pas en règle).
  */
 export function GuidedCase({ supportCase: c }: { supportCase: SupportCase }) {
   const { vars, setVar } = useMemberVars();
@@ -23,198 +31,239 @@ export function GuidedCase({ supportCase: c }: { supportCase: SupportCase }) {
   const refs = useRef<Record<string, HTMLElement | null>>({});
   const first = useRef(true);
 
+  const gated = !statusCheckExempt.has(c.id);
   const guidance = caseGuidance[c.id] ?? {};
   const statusMsg = getInternalMessage('int-compta-acces');
   const identity = ['prenom', 'nom', 'email'] as const;
   const identityDone = identity.every((k) => (vars[k] ?? '').trim() !== '');
-  const toAsk = c.infoToCollect.filter((i) => !['Prénom', 'Nom', 'Email', 'Email utilisé lors de l’inscription'].includes(i));
-  const replyRef = c.memberMessages.find((m) => m.moment === 'resolution');
-  const reply = getTemplate(replyRef?.templateId);
-  const escalation = c.escalation;
-  const role = escalation ? getRole(escalation.to) : undefined;
   const notInOrder = getCase(NOT_IN_ORDER_CASE_ID);
+  const toggle = (k: string) => setChecked((p) => (p.includes(k) ? p.filter((x) => x !== k) : [...p, k]));
+  let prenomShown = gated; // sans étape « identifier », le prénom se saisit à côté du premier message
 
-  // Étapes que ce cas possède réellement (aucune étape vide).
-  const hasTreat = toAsk.length > 0 || c.checks.length > 0 || c.steps.length > 0;
-  const ids = ORDER.filter((id) => (id !== 'treat' || hasTreat) && (id !== 'reply' || reply));
-  const activeId = ids[Math.min(active, ids.length - 1)];
+  const missing = statusMsg ? missingVariables(statusMsg.message, vars, []) : [];
 
-  const go = (id: StepId) => setActive(Math.max(0, ids.indexOf(id)));
-  const next = (from: StepId) => setActive(ids.indexOf(from) + 1);
+  const renderBlock = (b: RoadmapBlock, i: number): ReactNode => {
+    switch (b.kind) {
+      case 'ask': {
+        const items = gated ? c.infoToCollect.filter((x) => !IDENTITY_ASKS.includes(x)) : c.infoToCollect;
+        return items.length ? <Checklist key={i} label={L.blocks.ask} items={items} checked={checked} onToggle={toggle} /> : null;
+      }
+      case 'checks':
+        return c.checks.length ? <Checklist key={i} label={L.blocks.check} items={c.checks} checked={checked} onToggle={toggle} /> : null;
+      case 'branches':
+        return guidance.branches?.length ? (
+          <div key={i} className="rm-branches">
+            <div className="rm-sub">{L.blocks.branches}</div>
+            {guidance.branches.map((br) => {
+              const tpl = getTemplate(br.messageId);
+              const target = getCase(br.caseId);
+              return (
+                <div key={br.when} className="rm-branch">
+                  <strong>Si {br.when.charAt(0).toLowerCase() + br.when.slice(1)}</strong>
+                  <span>{br.then}</span>
+                  {target && (
+                    <a className="rm-link" href={href('traiter', target.id)}>
+                      {target.shortTitle} →
+                    </a>
+                  )}
+                  {tpl && (
+                    <>
+                      <button type="button" className="rm-link" onClick={() => setOpenBranch(openBranch === br.when ? null : br.when)}>
+                        {L.blocks.showReply}
+                      </button>
+                      {openBranch === br.when && <TemplateCard template={tpl} expanded showCaseLink={false} compact />}
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : null;
+      case 'steps': {
+        const rows = b.idx.map((n) => ({ n, s: c.steps[n] })).filter((r) => r.s);
+        return rows.length ? (
+          <div key={i} className="rm-lines">
+            {rows.map(({ n, s }) => (
+              <p key={n} className="rm-text">
+                {s.owner !== 'sav' && <span className="rm-muted">{getRole(s.owner)?.label} : </span>}
+                {s.text}
+                {guidance.stepNotes?.[n] && <span className="rm-note">{guidance.stepNotes[n]}</span>}
+              </p>
+            ))}
+          </div>
+        ) : null;
+      }
+      case 'escalation': {
+        const e = c.escalation;
+        if (!e) return null;
+        const role = getRole(e.to);
+        return (
+          <dl key={i} className="rm-facts">
+            {guidance.escalateWhen && (
+              <>
+                <dt>{L.blocks.when}</dt>
+                <dd>{guidance.escalateWhen}</dd>
+              </>
+            )}
+            <dt>{L.blocks.to}</dt>
+            <dd>{role ? `${role.label}${role.contact ? ` — ${role.contact}` : ''}` : e.to}</dd>
+            <dt>{L.blocks.what}</dt>
+            <dd>{e.infoToTransmit.map((k) => ({ Prénom: vars.prenom, Nom: vars.nom, Email: vars.email })[k as 'Prénom'] || k).join(' · ')}</dd>
+          </dl>
+        );
+      }
+      case 'doNot':
+        return c.doNot.length ? (
+          <div key={i} className="rm-donot">
+            <div className="rm-sub">{L.blocks.doNot}</div>
+            <ul>
+              {c.doNot.map((d) => (
+                <li key={d}>{d}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null;
+      case 'message': {
+        const ref = c.memberMessages.find((m) => m.templateId === b.id);
+        const tpl = getTemplate(b.id);
+        if (!ref || !tpl) return null;
+        const showPrenom = !prenomShown;
+        prenomShown = true;
+        return (
+          <div key={i} className="rm-message">
+            {showPrenom && (
+              <label className="field rm-prenom">
+                <span className="field-label">{L.blocks.prenom}</span>
+                <input className="input" value={vars.prenom ?? ''} onChange={(e) => setVar('prenom', e.target.value)} autoComplete="off" />
+              </label>
+            )}
+            {ref.note && <div className="rm-sub">{ref.note}</div>}
+            <TemplateCard template={tpl} expanded showCaseLink={false} compact />
+          </div>
+        );
+      }
+      case 'link':
+        return (
+          <a key={i} className="rm-link" href={href(b.page, b.param)}>
+            {b.label} →
+          </a>
+        );
+    }
+  };
 
-  // Après une action, le regard suit : l'étape active remonte en haut (pas au chargement initial).
+  // Étapes propres au cas : une étape sans contenu n'existe pas.
+  const content: Step[] = roadmapFor(c)
+    .map((d, n) => ({ key: `c${n}`, title: d.title, nodes: d.blocks.map(renderBlock).filter((x) => x !== null) }))
+    .filter((d) => d.nodes.length > 0)
+    .map((d) => ({ key: d.key, title: d.title, body: <>{d.nodes}</> }));
+
+  const pre: Step[] = gated
+    ? [
+        {
+          key: 'identify',
+          title: L.identify.title,
+          body: (
+            <div className="rm-fields">
+              {identity.map((k) => (
+                <label key={k} className="field">
+                  <span className="field-label">{k === 'prenom' ? 'Prénom' : k === 'nom' ? 'Nom' : 'Email'}</span>
+                  <input className="input" type={k === 'email' ? 'email' : 'text'} value={vars[k] ?? ''} onChange={(e) => setVar(k, e.target.value)} autoComplete="off" />
+                </label>
+              ))}
+            </div>
+          ),
+          cta: { label: L.identify.cta, disabled: !identityDone },
+        },
+        {
+          key: 'status',
+          title: L.status.title,
+          hint: L.status.hint,
+          body: statusMsg && (
+            <>
+              <TemplateText body={statusMsg.message} vars={vars} />
+              <div className="rm-actions">
+                <CopyButton
+                  text={renderTemplate(statusMsg.message, vars, [])}
+                  label={L.status.copy}
+                  className="btn btn-secondary"
+                  disabled={missing.length > 0}
+                  disabledReason={`Renseigne d'abord : ${missing.map(variableLabel).join(', ')}`}
+                />
+              </div>
+            </>
+          ),
+          cta: { label: L.status.cta },
+        },
+        {
+          key: 'result',
+          title: L.result.title,
+          body: (
+            <>
+              <div className="rm-choice">
+                <button type="button" className={`btn ${choice === 'ok' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => choose('ok')}>
+                  {L.result.ok}
+                </button>
+                <button type="button" className={`btn ${choice === 'ko' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => choose('ko')}>
+                  {L.result.ko}
+                </button>
+              </div>
+              {choice && (
+                <button type="button" className="rm-link" onClick={() => { setChoice(null); setActive(2); }}>
+                  {L.result.change}
+                </button>
+              )}
+            </>
+          ),
+        },
+      ]
+    : [];
+
+  function choose(v: 'ok' | 'ko') {
+    setChoice(v);
+    setActive(pre.length);
+  }
+
+  const koReplaces = gated && choice === 'ko' && c.id !== NOT_IN_ORDER_CASE_ID;
+  const end: Step = {
+    key: 'end',
+    title: L.end.title,
+    hint: c.closingCriteria,
+    body: (
+      <a className="rm-link" href={href('accueil')}>
+        {L.end.again} →
+      </a>
+    ),
+  };
+  const rest: Step[] = koReplaces
+    ? [
+        {
+          key: 'ko',
+          title: L.notInOrder.title,
+          hint: L.notInOrder.hint,
+          body: notInOrder && (
+            <a className="rm-link" href={href('traiter', notInOrder.id)}>
+              {notInOrder.shortTitle} →
+            </a>
+          ),
+        },
+      ]
+    : [
+        ...content.map((s, n) => ({ ...s, cta: { label: n === content.length - 1 ? L.cta.last : L.cta.next } })),
+        end,
+      ];
+  const list = [...pre, ...rest];
+  const activeIdx = Math.min(active, list.length - 1);
+  const activeKey = list[activeIdx].key;
+
+  // Après une action, l'étape active remonte en haut (pas au chargement).
   useEffect(() => {
     if (first.current) {
       first.current = false;
       return;
     }
-    const el = refs.current[activeId];
+    const el = refs.current[activeKey];
     if (el && typeof el.scrollIntoView === 'function') window.requestAnimationFrame(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }));
-  }, [activeId]);
-
-  const choose = (v: 'ok' | 'ko') => {
-    setChoice(v);
-    go('treat');
-  };
-  const toggle = (k: string) => setChecked((p) => (p.includes(k) ? p.filter((x) => x !== k) : [...p, k]));
-
-  const missing = statusMsg ? missingVariables(statusMsg.message, vars, []) : [];
-
-  const steps: Record<StepId, { title: string; hint?: string; body?: ReactNode; cta?: { label: string; disabled?: boolean } }> = {
-    identify: {
-      title: L.identify.title,
-      body: (
-        <div className="rm-fields">
-          {identity.map((k) => (
-            <label key={k} className="field">
-              <span className="field-label">{k === 'prenom' ? 'Prénom' : k === 'nom' ? 'Nom' : 'Email'}</span>
-              <input className="input" type={k === 'email' ? 'email' : 'text'} value={vars[k] ?? ''} onChange={(e) => setVar(k, e.target.value)} autoComplete="off" />
-            </label>
-          ))}
-        </div>
-      ),
-      cta: { label: L.identify.cta, disabled: !identityDone },
-    },
-    status: {
-      title: L.status.title,
-      hint: L.status.hint,
-      body: statusMsg ? (
-        <>
-          <TemplateText body={statusMsg.message} vars={vars} />
-          <div className="rm-actions">
-            <CopyButton
-              text={renderTemplate(statusMsg.message, vars, [])}
-              label={L.status.copy}
-              className="btn btn-secondary"
-              disabled={missing.length > 0}
-              disabledReason={`Renseigne d'abord : ${missing.map(variableLabel).join(', ')}`}
-            />
-          </div>
-        </>
-      ) : undefined,
-      cta: { label: L.status.cta },
-    },
-    result: {
-      title: L.result.title,
-      body: (
-        <>
-          <div className="rm-choice">
-            <button type="button" className={`btn ${choice === 'ok' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => choose('ok')}>
-              {L.result.ok}
-            </button>
-            <button type="button" className={`btn ${choice === 'ko' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => choose('ko')}>
-              {L.result.ko}
-            </button>
-          </div>
-          {choice && activeId !== 'result' && (
-            <button type="button" className="rm-link" onClick={() => { setChoice(null); go('result'); }}>
-              {L.result.change}
-            </button>
-          )}
-        </>
-      ),
-    },
-    treat: {
-      title: L.treat.title,
-      hint: choice === 'ko' ? L.result.koHint : undefined,
-      body:
-        choice === 'ko' ? (
-          notInOrder && (
-            <a className="rm-link" href={href('traiter', notInOrder.id)}>
-              {notInOrder.shortTitle} →
-            </a>
-          )
-        ) : (
-          <>
-            {(toAsk.length > 0 || c.checks.length > 0) && (
-              <div className="rm-block">
-                <div className="rm-sub">{L.treat.verify}</div>
-                {toAsk.length > 0 && <Checklist label={L.treat.ask} items={toAsk} checked={checked} onToggle={toggle} />}
-                {c.checks.length > 0 && <Checklist label={L.treat.check} items={c.checks} checked={checked} onToggle={toggle} />}
-                {guidance.branches && guidance.branches.length > 0 && (
-                  <div className="rm-branches">
-                    <div className="rm-sub">{L.treat.branches}</div>
-                    {guidance.branches.map((b) => {
-                      const tpl = getTemplate(b.messageId);
-                      const target = getCase(b.caseId);
-                      return (
-                        <div key={b.when} className="rm-branch">
-                          <strong>Si {b.when.charAt(0).toLowerCase() + b.when.slice(1)}</strong>
-                          <span>{b.then}</span>
-                          {target && (
-                            <a className="rm-link" href={href('traiter', target.id)}>
-                              {target.shortTitle} →
-                            </a>
-                          )}
-                          {tpl && (
-                            <>
-                              <button type="button" className="rm-link" onClick={() => setOpenBranch(openBranch === b.when ? null : b.when)}>
-                                {L.treat.showReply}
-                              </button>
-                              {openBranch === b.when && <TemplateCard template={tpl} expanded showCaseLink={false} compact />}
-                            </>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-            {c.steps[0] && (
-              <div className="rm-block">
-                <div className="rm-sub">{L.treat.transmit}</div>
-                <p className="rm-text">{c.steps[0].text}</p>
-                {escalation && (
-                  <dl className="rm-facts">
-                    <dt>{L.treat.to}</dt>
-                    <dd>{role ? `${role.label}${role.contact ? ` — ${role.contact}` : ''}` : escalation.to}</dd>
-                    <dt>{L.treat.what}</dt>
-                    <dd>{escalation.infoToTransmit.map((k) => ({ Prénom: vars.prenom, Nom: vars.nom, Email: vars.email })[k as 'Prénom'] || k).join(' · ')}</dd>
-                  </dl>
-                )}
-                {c.doNot.length > 0 && (
-                  <div className="rm-donot">
-                    <div className="rm-sub">{L.treat.doNot}</div>
-                    <ul>
-                      {c.doNot.map((d) => (
-                        <li key={d}>{d}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            )}
-            {c.steps[1] && (
-              <div className="rm-block">
-                <div className="rm-sub">{L.treat.follow}</div>
-                <p className="rm-text">
-                  <span className="rm-muted">{getRole(c.steps[1].owner)?.label} : </span>
-                  {c.steps[1].text}
-                </p>
-                {c.steps[2] && <p className="rm-text">{c.steps[2].text}</p>}
-              </div>
-            )}
-          </>
-        ),
-      cta: choice === 'ok' ? { label: L.treat.cta } : undefined,
-    },
-    reply: {
-      title: L.reply.title,
-      hint: replyRef?.note,
-      body: reply ? <TemplateCard template={reply} expanded showCaseLink={false} compact /> : undefined,
-      cta: { label: L.reply.cta },
-    },
-    end: {
-      title: L.end.title,
-      hint: c.closingCriteria,
-      body: (
-        <a className="rm-link" href={href('accueil')}>
-          {L.end.again} →
-        </a>
-      ),
-    },
-  };
+  }, [activeKey]);
 
   return (
     <article className="case-sheet guided">
@@ -222,29 +271,29 @@ export function GuidedCase({ supportCase: c }: { supportCase: SupportCase }) {
         <h1 className="cs-title">{c.shortTitle}</h1>
       </header>
       <ol className="rm">
-        {ids.map((id, i) => {
-          const s = steps[id];
-          const state = i < ids.indexOf(activeId) ? 'is-done' : i === ids.indexOf(activeId) ? 'is-active' : 'is-future';
+        {list.map((s, i) => {
+          const state = i < activeIdx ? 'is-done' : i === activeIdx ? 'is-active' : 'is-future';
+          const isEnd = s.key === 'end';
           return (
             <li
-              key={id}
+              key={s.key}
               ref={(el) => {
-                refs.current[id] = el;
+                refs.current[s.key] = el;
               }}
-              className={`rm-step ${state} ${i === ids.length - 1 ? 'is-last' : ''}`}
+              className={`rm-step ${state} ${i === list.length - 1 ? 'is-last' : ''}`}
             >
-              <span className="rm-num">{id === 'end' ? '' : String(i + 1).padStart(2, '0')}</span>
+              <span className="rm-num">{isEnd ? '' : String(i + 1).padStart(2, '0')}</span>
               <div className="rm-main">
                 <h2 className="rm-title">{s.title}</h2>
                 {s.hint && <p className="rm-hint">{s.hint}</p>}
                 {s.body && (
-                  <div className="rm-body" inert={state === 'is-future' && id !== 'end'}>
+                  <div className="rm-body" inert={state === 'is-future' && !isEnd}>
                     {s.body}
                   </div>
                 )}
                 {s.cta && state === 'is-active' && (
                   <div className="rm-actions">
-                    <button type="button" className="btn btn-primary" disabled={s.cta.disabled} onClick={() => next(id)}>
+                    <button type="button" className="btn btn-primary" disabled={s.cta.disabled} onClick={() => setActive(i + 1)}>
                       {s.cta.label}
                     </button>
                   </div>

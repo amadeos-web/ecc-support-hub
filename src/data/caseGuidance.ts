@@ -15,13 +15,10 @@ export interface CaseGuidance {
 
 const MANAGER = 'validation d’un responsable nécessaire';
 
-/** Cas sans contrôle du statut membre (la personne n'est pas un membre qui demande de l'aide). */
-export const statusCheckExempt = new Set(['cas-prospect', 'cas-hors-sujet']);
+/** Cas sans contrôle du statut membre : la personne n'est pas (encore) un membre identifié qui demande de l'aide. */
+export const statusCheckExempt = new Set(['cas-prospect', 'cas-hors-sujet', 'cas-membre-non-identifie']);
 
 /** Cas du référentiel à appliquer quand le membre n'est pas en règle. */
-/** Cas déjà présentés sous forme de parcours guidé (les autres gardent la fiche actuelle). */
-export const guidedCaseIds = new Set(['cas-acces-v2-non-recu']);
-
 export const NOT_IN_ORDER_CASE_ID = 'cas-defaut-paiement';
 
 export const caseGuidance: Record<string, CaseGuidance> = {

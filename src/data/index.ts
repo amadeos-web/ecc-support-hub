@@ -9,9 +9,11 @@ import { roles } from './roles';
 
 export * from './types';
 export * from './categories';
-export { caseGuidance, statusCheckExempt, guidedCaseIds, NOT_IN_ORDER_CASE_ID } from './caseGuidance';
+export { caseGuidance, statusCheckExempt, NOT_IN_ORDER_CASE_ID } from './caseGuidance';
 export type { CaseGuidance } from './caseGuidance';
 export { roadmapLabels } from './roadmap';
+export { roadmapFor } from './caseRoadmaps';
+export type { RoadmapBlock, RoadmapStepDef } from './caseRoadmaps';
 export { getRole } from './roles';
 export { getInternalMessage } from './internalMessages';
 export { issuer, currencies, vatRates, attestationStatuses } from './documentTypes';

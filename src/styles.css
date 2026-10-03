@@ -1114,3 +1114,9 @@ h2 { font-size: 19px; }
 .rm-step.is-end { padding-bottom: 8px; }
 .rm-step.is-end .rm-main { display: block; }
 .rm-step.is-future .rm-link { pointer-events: none; }
+
+.rm-lines { display: flex; flex-direction: column; gap: 10px; }
+.rm-note { display: block; margin-top: 2px; font-size: 13px; color: var(--text-3); }
+.rm-message { display: flex; flex-direction: column; gap: 10px; }
+.rm-message + .rm-message { border-top: 1px solid var(--border); padding-top: 18px; }
+.rm-prenom { max-width: 260px; }

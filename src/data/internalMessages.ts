@@ -2,7 +2,7 @@ import type { InternalMessage } from './types';
 
 /**
  * Messages internes (à destination d'un autre membre de l'équipe).
- * `int-compta-acces` : contrôle du statut membre, étape commune à tous les cas (voir StatusGate).
+ * `int-compta-acces` : contrôle du statut membre, étape commune à tous les cas.
  * Toutes leurs variables sont obligatoires : la copie est bloquée tant qu'elles sont vides.
  */
 export const internalMessages: InternalMessage[] = [
