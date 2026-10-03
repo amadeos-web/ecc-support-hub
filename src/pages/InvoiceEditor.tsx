@@ -1,0 +1,603 @@
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { defaultIssuerProfile } from '../data/issuerProfile';
+import { invoiceTemplate } from '../data/invoiceTemplate';
+import {
+  COMPANY_ID_LABELS,
+  INVOICE_CURRENCIES,
+  buildInvoice,
+  clientFileName,
+  emptyInvoiceForm,
+  exampleInvoiceForm,
+  newLine,
+  type ClientForm,
+  type InvoiceData,
+  type InvoiceForm,
+  type LineForm,
+} from '../documents/invoice/model';
+import { ISSUER_STORAGE_KEY, loadIssuerProfile, saveIssuerProfile, type IssuerProfile, type OptionalIssuerField } from '../documents/core/issuer';
+import { createLocalNumberStore, formatInvoiceNumber, proposeInvoiceNumber } from '../documents/core/numbering';
+import { formatMoney, formatRate } from '../documents/core/money';
+import { buildDocumentFileName } from '../documents/core/fileName';
+import { safeStorage } from '../documents/core/storage';
+import { downloadBlob } from '../documents/pdf/download';
+
+const DESCRIPTION_PRESETS = [invoiceTemplate.defaultDescription, 'Accompagnement', 'Autre prestation'];
+const RATE_PRESETS = ['0', '6', '12', '21', '5,5', '10', '20'];
+
+const loadPdfRenderer = () => import('../documents/pdf/render');
+
+export function InvoiceEditor() {
+  const [form, setForm] = useState<InvoiceForm>(emptyInvoiceForm);
+  const initialIssuer = useMemo(() => loadIssuerProfile(safeStorage, defaultIssuerProfile), []);
+  const [issuer, setIssuer] = useState<IssuerProfile>(initialIssuer.profile);
+  const [issuerSaved, setIssuerSaved] = useState(initialIssuer.saved);
+  const [issuerOpen, setIssuerOpen] = useState(() => Object.keys(buildInvoice(emptyInvoiceForm(), initialIssuer.profile).errors).some((k) => k.startsWith('issuer.')));
+  const [showErrors, setShowErrors] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<{ kind: 'ok' | 'error' | 'info'; text: string } | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const summaryRef = useRef<HTMLDivElement>(null);
+  const numberStore = useMemo(() => createLocalNumberStore(safeStorage), []);
+
+  const build = useMemo(() => buildInvoice(form, issuer), [form, issuer]);
+  const err = (key: string) => (showErrors ? build.errors[key] : undefined);
+  const errorList = [...new Set(Object.values(build.errors))];
+  const t = build.draft.totals;
+  const cur = form.currency;
+  const prefix = issuer.invoicePrefix.trim().toUpperCase() || 'ECC';
+  const [reference, setReference] = useState(() => numberStore.getReference());
+  const lastSeq = useMemo(() => numberStore.lastSequence(), [numberStore, reference, notice]);
+  const numberAlreadyUsed = form.number.trim() !== '' && numberStore.isUsed(form.number);
+  const fileName = buildDocumentFileName('Facture', form.number, clientFileName(form.client));
+  const issuerErrorCount = Object.keys(build.errors).filter((k) => k.startsWith('issuer.')).length;
+  const prefixIsPreset = invoiceTemplate.prefixes.includes(prefix);
+  const [customPrefix, setCustomPrefix] = useState(!prefixIsPreset);
+
+  const set = <K extends keyof InvoiceForm>(key: K, value: InvoiceForm[K]) => setForm((f) => ({ ...f, [key]: value }));
+  const setClient = (key: keyof ClientForm, value: string) => setForm((f) => ({ ...f, client: { ...f.client, [key]: value } }));
+  const setLine = (id: string, patch: Partial<LineForm>) => setForm((f) => ({ ...f, lines: f.lines.map((l) => (l.id === id ? { ...l, ...patch } : l)) }));
+  const setIssuerField = (key: Exclude<keyof IssuerProfile, 'notApplicable'>, value: string) => {
+    setIssuer((p) => ({ ...p, [key]: value }));
+    setIssuerSaved(false);
+  };
+  const setIssuerNA = (key: OptionalIssuerField, value: boolean) => {
+    setIssuer((p) => ({ ...p, notApplicable: { ...p.notApplicable, [key]: value } }));
+    setIssuerSaved(false);
+  };
+
+  const flash = (kind: 'ok' | 'error' | 'info', text: string) => setNotice({ kind, text });
+
+  const showErrorsAndScroll = () => {
+    setShowErrors(true);
+    window.setTimeout(() => summaryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+  };
+
+  const onPreview = () => {
+    setShowErrors(true);
+    setPreviewOpen(true);
+  };
+
+  const onGenerate = async () => {
+    if (!build.isValid) {
+      flash('error', form.paymentConfirmed ? 'Le PDF n’a pas été généré : corrige les champs signalés.' : 'Le PDF n’a pas été généré : confirme d’abord la réception du règlement intégral.');
+      if (Object.keys(build.errors).some((k) => k.startsWith('issuer.'))) setIssuerOpen(true);
+      showErrorsAndScroll();
+      return;
+    }
+    if (numberAlreadyUsed && !window.confirm(`Le numéro ${form.number.trim()} a déjà servi à générer un PDF dans ce navigateur.\nGénérer quand même ?`)) return;
+    setBusy(true);
+    setNotice(null);
+    try {
+      const { renderInvoicePdfBlob } = await loadPdfRenderer();
+      const blob = await renderInvoicePdfBlob(build.draft);
+      downloadBlob(blob, fileName);
+      numberStore.markUsed(form.number);
+      flash('ok', `PDF généré et téléchargé : ${fileName}`);
+    } catch {
+      flash('error', 'La génération du PDF a échoué. Réessaie ; si le problème persiste, vérifie le logo (PNG ou JPEG).');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onReset = () => {
+    if (!window.confirm('Effacer toutes les informations de cette facture ? (le profil émetteur est conservé)')) return;
+    setForm(emptyInvoiceForm());
+    setShowErrors(false);
+    setNotice(null);
+  };
+
+  const onLogo = (file: File | undefined) => {
+    if (!file) return;
+    if (!['image/png', 'image/jpeg'].includes(file.type)) return flash('error', 'Logo : formats acceptés PNG ou JPEG.');
+    if (file.size > 800_000) return flash('error', 'Logo : 800 Ko maximum.');
+    const reader = new FileReader();
+    reader.onload = () => setIssuerField('logoDataUrl', String(reader.result));
+    reader.readAsDataURL(file);
+  };
+
+  const onSaveIssuer = () => {
+    if (saveIssuerProfile(safeStorage, issuer)) {
+      setIssuerSaved(true);
+      flash('ok', 'Profil émetteur enregistré dans ce navigateur.');
+    } else flash('error', 'Impossible d’enregistrer le profil (stockage du navigateur indisponible).');
+  };
+
+  const onRestoreIssuer = () => {
+    if (!window.confirm('Revenir au profil émetteur par défaut (placeholders) ?')) return;
+    safeStorage.remove(ISSUER_STORAGE_KEY);
+    setIssuer({ ...defaultIssuerProfile, notApplicable: {} });
+    setIssuerSaved(false);
+  };
+
+  return (
+    <div className="invoice">
+      <div className="doc-actions">
+        <button type="button" className="btn btn-secondary" onClick={onPreview}>
+          Prévisualiser
+        </button>
+        <button type="button" className="btn btn-primary" onClick={onGenerate} disabled={busy || !form.paymentConfirmed} title={form.paymentConfirmed ? undefined : 'Confirme d’abord la réception du règlement intégral'}>
+          {busy ? 'Génération…' : 'Générer le PDF'}
+        </button>
+        <button type="button" className="btn btn-ghost" onClick={onReset}>
+          Réinitialiser
+        </button>
+        <span className="spacer" />
+        <button type="button" className="btn btn-ghost" onClick={() => setForm(exampleInvoiceForm())}>
+          Remplir un exemple
+        </button>
+      </div>
+
+      {notice && (
+        <div className={`notice notice-${notice.kind}`} role="status">
+          {notice.text}
+          <button type="button" className="notice-close" onClick={() => setNotice(null)} aria-label="Fermer">
+            ✕
+          </button>
+        </div>
+      )}
+
+      <div className="invoice-layout">
+        <div className="invoice-form">
+          <div ref={summaryRef} />
+          {showErrors && errorList.length > 0 && (
+            <div className="error-summary" role="alert">
+              <strong>{errorList.length === 1 ? '1 point à corriger' : `${errorList.length} points à corriger`} avant de générer le PDF :</strong>
+              <ul>
+                {errorList.map((e) => (
+                  <li key={e}>{e}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* A. Émetteur */}
+          <section className={`form-card ${issuerOpen ? 'is-open' : ''}`}>
+            <header className="form-card-head" onClick={() => setIssuerOpen((o) => !o)}>
+              <div>
+                <h3>
+                  <span className="step">A</span> Émetteur
+                </h3>
+                <p className="muted small">
+                  {issuer.name} · {issuerSaved ? 'profil enregistré dans ce navigateur' : 'profil non enregistré'}
+                </p>
+              </div>
+              <button type="button" className="btn btn-ghost btn-small">
+                {issuerOpen ? 'Fermer' : 'Modifier'}
+              </button>
+            </header>
+            {issuerErrorCount > 0 && (
+              <p className="warn-inline">
+                Coordonnées émetteur incomplètes ({issuerErrorCount}) : la génération du PDF est bloquée. Les coordonnées internes (BB, ECC…) pouvant évoluer, vérifie-les avant chaque émission.
+              </p>
+            )}
+            {issuerOpen && (
+              <div className="form-card-body">
+                <div className="form-grid">
+                  <F label="Raison sociale" required error={err('issuer.name')} wide>
+                    <input className="input" value={issuer.name} onChange={(e) => setIssuerField('name', e.target.value)} />
+                  </F>
+                  <F label="Adresse" required error={err('issuer.address')} wide>
+                    <input className="input" value={issuer.address} onChange={(e) => setIssuerField('address', e.target.value)} />
+                  </F>
+                  <NAField label="Code postal" field="postalCode" issuer={issuer} error={err('issuer.postalCode')} onChange={setIssuerField} onNA={setIssuerNA} />
+                  <F label="Ville" required error={err('issuer.city')}>
+                    <input className="input" value={issuer.city} onChange={(e) => setIssuerField('city', e.target.value)} />
+                  </F>
+                  <F label="Pays" required error={err('issuer.country')}>
+                    <input className="input" value={issuer.country} onChange={(e) => setIssuerField('country', e.target.value)} />
+                  </F>
+                  <F label="Email" hint="Optionnel" error={err('issuer.email')}>
+                    <input className="input" value={issuer.email} onChange={(e) => setIssuerField('email', e.target.value)} />
+                  </F>
+                  <NAField label="Numéro d'entreprise" field="companyNumber" issuer={issuer} error={err('issuer.companyNumber')} onChange={setIssuerField} onNA={setIssuerNA} />
+                  <NAField label="Numéro de TVA" field="vatNumber" issuer={issuer} error={err('issuer.vatNumber')} onChange={setIssuerField} onNA={setIssuerNA} />
+                  <F label="Nom de marque (pied de page)" hint="Ex. Business Brothers. Vide = raison sociale.">
+                    <input className="input" value={issuer.brandName} onChange={(e) => setIssuerField('brandName', e.target.value)} />
+                  </F>
+                  <F label="Préfixe des numéros" hint={`Ex. ${formatInvoiceNumber(prefix, 174)}`}>
+                    <div className="input-with-btn">
+                      <select
+                        className="input"
+                        value={customPrefix ? '__autre' : prefix}
+                        onChange={(e) => {
+                          if (e.target.value === '__autre') return setCustomPrefix(true);
+                          setCustomPrefix(false);
+                          setIssuerField('invoicePrefix', e.target.value);
+                        }}
+                      >
+                        {invoiceTemplate.prefixes.map((p) => (
+                          <option key={p} value={p}>
+                            {p}
+                          </option>
+                        ))}
+                        <option value="__autre">Autre…</option>
+                      </select>
+                      {customPrefix && (
+                        <input className="input" value={issuer.invoicePrefix} onChange={(e) => setIssuerField('invoicePrefix', e.target.value.replace(/[^A-Za-z]/g, '').toUpperCase())} placeholder="Lettres" />
+                      )}
+                    </div>
+                  </F>
+                  <F label="Logo (optionnel, PNG ou JPEG) — affiché en haut à droite" wide>
+                    <div className="logo-row">
+                      {issuer.logoDataUrl ? <img src={issuer.logoDataUrl} alt="Logo" className="logo-thumb" /> : <span className="muted small">Aucun logo : l’en-tête reste épuré, sans logo de remplacement.</span>}
+                      <label className="btn btn-ghost btn-small">
+                        Choisir un fichier
+                        <input type="file" accept="image/png,image/jpeg" hidden onChange={(e) => onLogo(e.target.files?.[0])} />
+                      </label>
+                      {issuer.logoDataUrl && (
+                        <button type="button" className="btn btn-ghost btn-small" onClick={() => setIssuerField('logoDataUrl', '')}>
+                          Retirer
+                        </button>
+                      )}
+                    </div>
+                  </F>
+                </div>
+                <div className="form-card-actions">
+                  <button type="button" className="btn btn-secondary btn-small" onClick={onSaveIssuer}>
+                    Enregistrer le profil
+                  </button>
+                  <button type="button" className="btn btn-ghost btn-small" onClick={onRestoreIssuer}>
+                    Revenir au profil vide
+                  </button>
+                  <span className="muted small">Enregistré uniquement dans ce navigateur.</span>
+                </div>
+              </div>
+            )}
+          </section>
+
+          {/* B. Destinataire */}
+          <section className="form-card is-open">
+            <header className="form-card-head">
+              <h3>
+                <span className="step">B</span> Destinataire
+              </h3>
+            </header>
+            <div className="form-card-body">
+              {err('client.identity') && <span className="field-error">{err('client.identity')}</span>}
+              <div className="form-grid">
+                <F label="Société" hint="Si le client facture au nom d’une société" wide>
+                  <input className="input" value={form.client.company} onChange={(e) => setClient('company', e.target.value)} autoComplete="off" />
+                </F>
+                <F label="Prénom" error={err('client.firstName')}>
+                  <input className="input" value={form.client.firstName} onChange={(e) => setClient('firstName', e.target.value)} autoComplete="off" />
+                </F>
+                <F label="Nom" error={err('client.lastName')}>
+                  <input className="input" value={form.client.lastName} onChange={(e) => setClient('lastName', e.target.value)} autoComplete="off" />
+                </F>
+                <F label="Adresse" required error={err('client.address')} wide>
+                  <input className="input" value={form.client.address} onChange={(e) => setClient('address', e.target.value)} autoComplete="off" />
+                </F>
+                <F label="Code postal">
+                  <input className="input" value={form.client.postalCode} onChange={(e) => setClient('postalCode', e.target.value)} autoComplete="off" />
+                </F>
+                <F label="Ville" required error={err('client.city')}>
+                  <input className="input" value={form.client.city} onChange={(e) => setClient('city', e.target.value)} autoComplete="off" />
+                </F>
+                <F label="Pays" required error={err('client.country')}>
+                  <input className="input" value={form.client.country} onChange={(e) => setClient('country', e.target.value)} autoComplete="off" />
+                </F>
+                <F label="N° d'entreprise / SIRET" hint="Optionnel — libellé imprimé au choix">
+                  <div className="input-with-btn">
+                    <select className="input select-narrow" value={form.client.companyIdLabel} onChange={(e) => setClient('companyIdLabel', e.target.value)}>
+                      {COMPANY_ID_LABELS.map((l) => (
+                        <option key={l}>{l}</option>
+                      ))}
+                    </select>
+                    <input className="input" value={form.client.companyNumber} onChange={(e) => setClient('companyNumber', e.target.value)} autoComplete="off" />
+                  </div>
+                </F>
+                <F label="Numéro de TVA" hint="Optionnel">
+                  <input className="input" value={form.client.vatNumber} onChange={(e) => setClient('vatNumber', e.target.value)} autoComplete="off" />
+                </F>
+              </div>
+              <p className="muted small">Seuls les champs renseignés apparaissent sur la facture.</p>
+            </div>
+          </section>
+
+          {/* C. Facture */}
+          <section className="form-card is-open">
+            <header className="form-card-head">
+              <h3>
+                <span className="step">C</span> Facture
+              </h3>
+            </header>
+            <div className="form-card-body">
+              <div className="form-grid">
+                <F label="Numéro de facture" required error={err('number')} wide hint={lastSeq > 0 ? `Dernier numéro connu : n° ${lastSeq} → proposition ${formatInvoiceNumber(prefix, lastSeq + 1)}` : 'Renseigne le dernier numéro émis ci-dessous pour continuer la séquence.'}>
+                  <div className="input-with-btn">
+                    <input className="input" value={form.number} onChange={(e) => set('number', e.target.value)} placeholder={formatInvoiceNumber(prefix, (lastSeq || 0) + 1)} />
+                    <button type="button" className="btn btn-ghost" onClick={() => set('number', proposeInvoiceNumber(numberStore, prefix))}>
+                      Générer une proposition
+                    </button>
+                  </div>
+                  {numberAlreadyUsed && <span className="warn-text small">Ce numéro a déjà servi à générer un PDF dans ce navigateur.</span>}
+                </F>
+                <F label="Dernier numéro émis (référence)" hint="Ex. BB0173 — dernière facture faite hors de cet outil. Mémorisé dans ce navigateur.">
+                  <input
+                    className="input"
+                    value={reference}
+                    onChange={(e) => {
+                      setReference(e.target.value);
+                      numberStore.setReference(e.target.value);
+                    }}
+                    placeholder="BB0173"
+                  />
+                </F>
+                <F label="Délivré le (date d’émission)" required error={err('issueDate')} hint="Date d’envoi au client, pas la date d’achat">
+                  <input className="input" type="date" value={form.issueDate} onChange={(e) => set('issueDate', e.target.value)} />
+                </F>
+                <F label="Devise" required>
+                  <select className="input" value={form.currency} onChange={(e) => set('currency', e.target.value as InvoiceForm['currency'])}>
+                    {INVOICE_CURRENCIES.map((c) => (
+                      <option key={c}>{c}</option>
+                    ))}
+                  </select>
+                </F>
+                <F label="Mention libre" hint="Optionnelle — imprimée sous le total, telle quelle" wide>
+                  <input className="input" value={form.vatMention} onChange={(e) => set('vatMention', e.target.value)} placeholder="Ex. mention TVA demandée par la comptabilité" />
+                </F>
+                <F label="Note interne" hint="Jamais imprimée ni enregistrée" wide>
+                  <input className="input" value={form.internalNote} onChange={(e) => set('internalNote', e.target.value)} />
+                </F>
+              </div>
+            </div>
+          </section>
+
+          {/* D. Prestation */}
+          <section className="form-card is-open">
+            <header className="form-card-head">
+              <h3>
+                <span className="step">D</span> Prestation
+              </h3>
+            </header>
+            <div className="form-card-body">
+              <div className="mode-choice">
+                <label className={`mode-option ${form.priceMode === 'TTC' ? 'is-active' : ''}`}>
+                  <input type="radio" name="price-mode" checked={form.priceMode === 'TTC'} onChange={() => set('priceMode', 'TTC')} />
+                  <span>
+                    <strong>Le montant saisi est TTC</strong>
+                    <span className="muted small">HT = TTC ÷ (1 + taux) · TVA = TTC − HT</span>
+                  </span>
+                </label>
+                <label className={`mode-option ${form.priceMode === 'HT' ? 'is-active' : ''}`}>
+                  <input type="radio" name="price-mode" checked={form.priceMode === 'HT'} onChange={() => set('priceMode', 'HT')} />
+                  <span>
+                    <strong>Le montant saisi est HT</strong>
+                    <span className="muted small">TVA = HT × taux · TTC = HT + TVA</span>
+                  </span>
+                </label>
+              </div>
+
+              <div className="inv-lines">
+                <div className="inv-line inv-line-head">
+                  <span>Description</span>
+                  <span>Qté</span>
+                  <span>Prix unit. {form.priceMode}</span>
+                  <span>TVA %</span>
+                  <span />
+                </div>
+                {form.lines.map((l, i) => (
+                  <div key={l.id} className="inv-line">
+                    <div>
+                      <input className={`input ${err(`lines.${i}.description`) ? 'has-error' : ''}`} list="desc-presets" value={l.description} onChange={(e) => setLine(l.id, { description: e.target.value })} placeholder="Ex. Formation ECC" />
+                      <FieldError text={err(`lines.${i}.description`)} />
+                    </div>
+                    <div>
+                      <input className={`input num ${err(`lines.${i}.quantity`) ? 'has-error' : ''}`} inputMode="decimal" value={l.quantity} onChange={(e) => setLine(l.id, { quantity: e.target.value })} />
+                      <FieldError text={err(`lines.${i}.quantity`)} />
+                    </div>
+                    <div>
+                      <input className={`input num ${err(`lines.${i}.unitPrice`) ? 'has-error' : ''}`} inputMode="decimal" value={l.unitPrice} onChange={(e) => setLine(l.id, { unitPrice: e.target.value })} placeholder="0,00" />
+                      <FieldError text={err(`lines.${i}.unitPrice`)} />
+                    </div>
+                    <div>
+                      <input className={`input num ${err(`lines.${i}.vatRate`) ? 'has-error' : ''}`} inputMode="decimal" list="rate-presets" value={l.vatRate} onChange={(e) => setLine(l.id, { vatRate: e.target.value })} placeholder="À choisir" />
+                      <FieldError text={err(`lines.${i}.vatRate`)} />
+                    </div>
+                    <button type="button" className="btn btn-ghost btn-icon" title="Supprimer la ligne" disabled={form.lines.length === 1} onClick={() => set('lines', form.lines.filter((x) => x.id !== l.id))}>
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                <datalist id="desc-presets">
+                  {DESCRIPTION_PRESETS.map((d) => (
+                    <option key={d} value={d} />
+                  ))}
+                </datalist>
+                <datalist id="rate-presets">
+                  {RATE_PRESETS.map((r) => (
+                    <option key={r} value={r} />
+                  ))}
+                </datalist>
+              </div>
+              <button type="button" className="btn btn-ghost btn-small add-line" onClick={() => set('lines', [...form.lines, newLine()])}>
+                + Ajouter une ligne
+              </button>
+              <p className="muted small">
+                Le taux de TVA est choisi par toi pour chaque ligne : il n’est jamais déduit du pays du client. En cas de doute (client professionnel, étranger, exonération), valide avec la comptabilité.
+              </p>
+            </div>
+          </section>
+          <p className="muted small disclaimer">
+            Cet outil calcule et met en page la facture ; il ne vérifie pas sa conformité légale ou fiscale. Fais valider les mentions et taux par la comptabilité avant envoi.
+          </p>
+        </div>
+
+        <aside className="invoice-side">
+          <div className="sum-card">
+            <div className="sum-row">
+              <span>Sous-total HT</span>
+              <strong>{formatMoney(t.totalHT, cur)}</strong>
+            </div>
+            {t.groups.length === 0 ? (
+              <div className="sum-row">
+                <span>TVA</span>
+                <strong>{formatMoney(0n, cur)}</strong>
+              </div>
+            ) : (
+              t.groups.map((g) => (
+                <div key={g.rateBp} className="sum-row">
+                  <span>TVA ({formatRate(g.rateBp)})</span>
+                  <strong>{formatMoney(g.tva, cur)}</strong>
+                </div>
+              ))
+            )}
+            <div className="sum-row sum-total">
+              <span>TOTAL TTC</span>
+              <strong>{formatMoney(t.totalTTC, cur)}</strong>
+            </div>
+            <div className="sum-foot">
+              <span className="muted small">Montants saisis en {form.priceMode}</span>
+              {build.isValid ? <span className="ok-text small">Prête à générer</span> : <span className="warn-text small">{errorList.length} point(s) à compléter</span>}
+            </div>
+            <label className={`confirm-box ${form.paymentConfirmed ? 'is-checked' : ''} ${err('paymentConfirmed') ? 'is-invalid' : ''}`}>
+              <input type="checkbox" checked={form.paymentConfirmed} onChange={(e) => set('paymentConfirmed', e.target.checked)} />
+              <span>{invoiceTemplate.paymentConfirmation}</span>
+            </label>
+            <button type="button" className="btn btn-primary sum-generate" onClick={onGenerate} disabled={busy || !form.paymentConfirmed} title={form.paymentConfirmed ? undefined : 'Confirme d’abord la réception du règlement intégral'}>
+              {busy ? 'Génération…' : 'Générer le PDF'}
+            </button>
+            {!form.paymentConfirmed && <span className="muted small">Une facture n’est émise qu’après règlement intégral.</span>}
+          </div>
+          <PdfPreview data={build.draft} />
+          <p className="muted small">Fichier : {fileName}</p>
+        </aside>
+      </div>
+
+      {previewOpen && (
+        <div className="modal" onClick={() => setPreviewOpen(false)}>
+          <div className="modal-inner modal-pdf" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-bar">
+              <span>Aperçu exact du PDF{build.isValid ? '' : ' — brouillon incomplet'}</span>
+              <div className="modal-bar-actions">
+                <button type="button" className="btn btn-primary btn-small" onClick={onGenerate} disabled={busy || !form.paymentConfirmed} title={form.paymentConfirmed ? undefined : 'Confirme d’abord la réception du règlement intégral'}>
+                  Générer le PDF
+                </button>
+                <button type="button" className="btn btn-ghost btn-small" onClick={() => setPreviewOpen(false)}>
+                  Fermer (Échap)
+                </button>
+              </div>
+            </div>
+            <PdfPreview data={build.draft} large onEscape={() => setPreviewOpen(false)} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------- Champs ---------- */
+
+function F({ label, required, error, hint, wide, children }: { label: string; required?: boolean; error?: string; hint?: string; wide?: boolean; children: ReactNode }) {
+  return (
+    <div className={`field ${wide ? 'field-wide' : ''} ${error ? 'is-invalid' : ''}`}>
+      <span className="field-label">
+        {label}
+        {required && <span className="req"> *</span>}
+      </span>
+      {children}
+      {error ? <FieldError text={error} /> : hint ? <span className="field-hint">{hint}</span> : null}
+    </div>
+  );
+}
+
+/** Champ émetteur pouvant être explicitement marqué « non applicable ». */
+function NAField({
+  label,
+  field,
+  issuer,
+  error,
+  onChange,
+  onNA,
+}: {
+  label: string;
+  field: OptionalIssuerField;
+  issuer: IssuerProfile;
+  error?: string;
+  onChange: (key: OptionalIssuerField, value: string) => void;
+  onNA: (key: OptionalIssuerField, value: boolean) => void;
+}) {
+  const na = !!issuer.notApplicable?.[field];
+  return (
+    <F label={label} required={!na} error={error}>
+      <input className="input" value={na ? '' : issuer[field]} disabled={na} onChange={(e) => onChange(field, e.target.value)} placeholder={na ? 'Non applicable' : ''} />
+      <label className="na-check">
+        <input type="checkbox" checked={na} onChange={(e) => onNA(field, e.target.checked)} /> Non applicable
+      </label>
+    </F>
+  );
+}
+
+function FieldError({ text }: { text?: string }) {
+  return text ? <span className="field-error">{text}</span> : null;
+}
+
+/* ---------- Aperçu : le vrai PDF, rendu localement ---------- */
+
+function PdfPreview({ data, large = false, onEscape }: { data: InvoiceData; large?: boolean; onEscape?: () => void }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
+
+  useEffect(() => {
+    let cancelled = false;
+    let created: string | null = null;
+    setState((s) => (s === 'ready' ? 'ready' : 'loading'));
+    const timer = window.setTimeout(async () => {
+      try {
+        const { renderInvoicePdfBlob } = await loadPdfRenderer();
+        const blob = await renderInvoicePdfBlob(data);
+        if (cancelled) return;
+        created = URL.createObjectURL(blob);
+        setUrl(created);
+        setState('ready');
+      } catch {
+        if (!cancelled) setState('error');
+      }
+    }, large ? 0 : 450);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+      // L'ancienne URL est libérée un peu plus tard, une fois la nouvelle affichée.
+      if (created) {
+        const old = created;
+        window.setTimeout(() => URL.revokeObjectURL(old), 5000);
+      }
+    };
+  }, [data, large]);
+
+  useEffect(() => {
+    if (!onEscape) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onEscape();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onEscape]);
+
+  return (
+    <div className={`pdf-frame ${large ? 'is-large' : ''}`}>
+      {url && <iframe title="Aperçu de la facture" src={`${url}#toolbar=0&navpanes=0&view=FitH`} />}
+      {state === 'loading' && !url && <div className="pdf-status">Préparation de l’aperçu…</div>}
+      {state === 'error' && <div className="pdf-status">L’aperçu n’a pas pu être généré (vérifie le logo).</div>}
+    </div>
+  );
+}
