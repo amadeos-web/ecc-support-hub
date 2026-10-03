@@ -29,8 +29,8 @@ export const documentTypes: DocumentTypeDef[] = [
 const p = defaultIssuerProfile;
 export const issuer = {
   name: p.name,
-  addressLines: [p.address, `${p.postalCode} ${p.city}, ${p.country}`],
-  legalLines: [p.companyNumber, p.vatNumber],
+  addressLines: [...p.address.split('\n'), [p.postalCode, p.city].filter(Boolean).join(' '), p.country].map((l) => l.trim()).filter(Boolean),
+  legalLines: [p.companyNumber, p.vatNumber].filter(Boolean),
   email: p.email,
   signatory: '[Nom et fonction du signataire — à compléter]',
 };

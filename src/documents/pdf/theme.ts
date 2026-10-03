@@ -37,7 +37,8 @@ export const pdfStyles = StyleSheet.create({
   /* En-tête */
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 50, paddingLeft: LAYOUT.inset, marginBottom: 20.5 },
   title: { fontFamily: SERIF, fontWeight: 400, fontSize: 22.2, letterSpacing: B.titleTracking, color: INK },
-  logo: { maxHeight: B.logo.maxHeight, maxWidth: B.logo.maxWidth, objectFit: 'contain' },
+  /** Cadre fixe, image contenue à droite : ratio toujours respecté, jamais déformée. */
+  logo: { width: B.logo.maxWidth, height: B.logo.maxHeight, objectFit: 'contain', objectPosition: 'right center' },
   logoPlaceholder: { width: B.logo.maxWidth, height: B.logo.maxHeight, borderWidth: 0.6, borderColor: '#D2D2D2', borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center' },
   logoPlaceholderText: { fontFamily: SANS, fontSize: 7, letterSpacing: 2.4, color: '#B0B0B0' },
   rule: { height: B.dividerStyle.width, backgroundColor: B.dividerStyle.color },

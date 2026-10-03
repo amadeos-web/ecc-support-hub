@@ -1,5 +1,4 @@
-/** Profil émetteur : configuration centrale, modifiable avant chaque génération et enregistrable localement. */
-import type { KeyValueStorage } from './storage';
+/** Profil émetteur : valeurs par défaut fixes (data/issuerProfile.ts), modifiables exceptionnellement pour UN document. */
 
 export interface IssuerProfile {
   /** Raison sociale (bloc EMETTEUR). */
@@ -27,14 +26,10 @@ export interface IssuerProfile {
 
 export type OptionalIssuerField = 'postalCode' | 'companyNumber' | 'vatNumber';
 
+/** Champs obligatoires : raison sociale et adresse. Les autres mentions ne sont imprimées que si elles sont renseignées. */
 export const ISSUER_REQUIRED: { key: Exclude<keyof IssuerProfile, 'notApplicable'>; label: string; canBeNA?: boolean }[] = [
   { key: 'name', label: 'Raison sociale' },
   { key: 'address', label: 'Adresse' },
-  { key: 'postalCode', label: 'Code postal', canBeNA: true },
-  { key: 'city', label: 'Ville' },
-  { key: 'country', label: 'Pays' },
-  { key: 'companyNumber', label: "Numéro d'entreprise", canBeNA: true },
-  { key: 'vatNumber', label: 'Numéro de TVA', canBeNA: true },
 ];
 
 /** Une valeur entre crochets = placeholder non personnalisé. */
@@ -61,21 +56,3 @@ export function issuerErrors(p: IssuerProfile): Record<string, string> {
   if (p.email.trim() && isPlaceholder(p.email)) errors['issuer.email'] = 'Émetteur : email à personnaliser ou à vider';
   return errors;
 }
-
-const KEY = 'ecc-hub:emetteur';
-
-export function loadIssuerProfile(storage: KeyValueStorage, defaults: IssuerProfile): { profile: IssuerProfile; saved: boolean } {
-  try {
-    const raw = storage.get(KEY);
-    if (raw) {
-      const stored = JSON.parse(raw) as Partial<IssuerProfile>;
-      return { profile: { ...defaults, ...stored, notApplicable: { ...defaults.notApplicable, ...stored.notApplicable } }, saved: true };
-    }
-  } catch {
-    /* profil corrompu : valeurs par défaut */
-  }
-  return { profile: { ...defaults, notApplicable: { ...defaults.notApplicable } }, saved: false };
-}
-
-export const saveIssuerProfile = (storage: KeyValueStorage, p: IssuerProfile) => storage.set(KEY, JSON.stringify(p));
-export const ISSUER_STORAGE_KEY = KEY;

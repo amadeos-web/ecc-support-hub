@@ -32,12 +32,20 @@ describe('facture : champs obligatoires et règles', () => {
     const client = { ...emptyClient(), company: 'SAS MAAS', address: '145 rue Jeanne Maillotte', postalCode: '59110', city: 'La Madeleine', country: 'France' };
     expect(buildInvoice(ready({ client }), testIssuer).errors).toEqual({});
   });
-  it('émetteur : placeholders ou champs vides bloquent la génération', () => {
+  it('émetteur par défaut : Business Brothers LIMITED, sans aucune autre mention inventée', () => {
     const r = buildInvoice(ready(), defaultIssuerProfile);
-    expect(r.isValid).toBe(false);
-    expect(r.errors['issuer.name']).toMatch(/personnaliser/);
-    const missing = buildInvoice(ready(), { ...testIssuer, vatNumber: '' });
-    expect(missing.errors['issuer.vatNumber']).toMatch(/manquant/);
+    expect(r.errors).toEqual({});
+    expect(defaultIssuerProfile.name).toBe('Business Brothers LIMITED');
+    expect(defaultIssuerProfile.address).toBe('2301, 23/F BAYFIELD BLDG 99\nHENNESSY RD WAN CHAI\nHONG KONG');
+    expect([defaultIssuerProfile.companyNumber, defaultIssuerProfile.vatNumber, defaultIssuerProfile.email, defaultIssuerProfile.postalCode]).toEqual(['', '', '', '']);
+  });
+  it('émetteur : raison sociale, adresse ou valeur entre crochets bloquent la génération', () => {
+    expect(buildInvoice(ready(), { ...testIssuer, name: '' }).errors['issuer.name']).toMatch(/manquant/);
+    expect(buildInvoice(ready(), { ...testIssuer, address: '' }).errors['issuer.address']).toMatch(/manquant/);
+    expect(buildInvoice(ready(), { ...testIssuer, name: '[Raison sociale]' }).errors['issuer.name']).toMatch(/personnaliser/);
+  });
+  it('émetteur : les mentions facultatives vides n’empêchent pas la génération', () => {
+    expect(buildInvoice(ready(), { ...testIssuer, vatNumber: '', companyNumber: '' }).errors).toEqual({});
   });
   it('émetteur : « non applicable » explicite accepté (ex. société sans code postal ni TVA)', () => {
     const hk = { ...testIssuer, postalCode: '', vatNumber: '', notApplicable: { postalCode: true, vatNumber: true } };

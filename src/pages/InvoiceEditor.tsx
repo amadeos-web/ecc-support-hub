@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { defaultIssuerProfile } from '../data/issuerProfile';
+import { freshIssuerProfile } from '../data/issuerProfile';
 import { invoiceTemplate } from '../data/invoiceTemplate';
 import {
   COMPANY_ID_LABELS,
@@ -14,7 +14,8 @@ import {
   type InvoiceForm,
   type LineForm,
 } from '../documents/invoice/model';
-import { ISSUER_STORAGE_KEY, loadIssuerProfile, saveIssuerProfile, type IssuerProfile, type OptionalIssuerField } from '../documents/core/issuer';
+import type { IssuerProfile } from '../documents/core/issuer';
+import { issuerLines, resolveLogo } from '../documents/pdf/blocks';
 import { createLocalNumberStore, formatInvoiceNumber, proposeInvoiceNumber } from '../documents/core/numbering';
 import { formatMoney, formatRate } from '../documents/core/money';
 import { buildDocumentFileName } from '../documents/core/fileName';
@@ -28,10 +29,10 @@ const loadPdfRenderer = () => import('../documents/pdf/render');
 
 export function InvoiceEditor() {
   const [form, setForm] = useState<InvoiceForm>(emptyInvoiceForm);
-  const initialIssuer = useMemo(() => loadIssuerProfile(safeStorage, defaultIssuerProfile), []);
-  const [issuer, setIssuer] = useState<IssuerProfile>(initialIssuer.profile);
-  const [issuerSaved, setIssuerSaved] = useState(initialIssuer.saved);
-  const [issuerOpen, setIssuerOpen] = useState(() => Object.keys(buildInvoice(emptyInvoiceForm(), initialIssuer.profile).errors).some((k) => k.startsWith('issuer.')));
+  /** Émetteur de CE document : toujours Business Brothers par défaut, jamais enregistré. */
+  const [issuer, setIssuer] = useState<IssuerProfile>(freshIssuerProfile);
+  const [issuerUnlocked, setIssuerUnlocked] = useState(false);
+  const [confirmUnlock, setConfirmUnlock] = useState(false);
   const [showErrors, setShowErrors] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ kind: 'ok' | 'error' | 'info'; text: string } | null>(null);
@@ -56,13 +57,12 @@ export function InvoiceEditor() {
   const set = <K extends keyof InvoiceForm>(key: K, value: InvoiceForm[K]) => setForm((f) => ({ ...f, [key]: value }));
   const setClient = (key: keyof ClientForm, value: string) => setForm((f) => ({ ...f, client: { ...f.client, [key]: value } }));
   const setLine = (id: string, patch: Partial<LineForm>) => setForm((f) => ({ ...f, lines: f.lines.map((l) => (l.id === id ? { ...l, ...patch } : l)) }));
-  const setIssuerField = (key: Exclude<keyof IssuerProfile, 'notApplicable'>, value: string) => {
-    setIssuer((p) => ({ ...p, [key]: value }));
-    setIssuerSaved(false);
-  };
-  const setIssuerNA = (key: OptionalIssuerField, value: boolean) => {
-    setIssuer((p) => ({ ...p, notApplicable: { ...p.notApplicable, [key]: value } }));
-    setIssuerSaved(false);
+  const setIssuerField = (key: Exclude<keyof IssuerProfile, 'notApplicable'>, value: string) => setIssuer((p) => ({ ...p, [key]: value }));
+  /** Retour à l'émetteur par défaut, champs verrouillés. */
+  const lockIssuer = () => {
+    setIssuer((p) => ({ ...freshIssuerProfile(), invoicePrefix: p.invoicePrefix }));
+    setIssuerUnlocked(false);
+    setConfirmUnlock(false);
   };
 
   const flash = (kind: 'ok' | 'error' | 'info', text: string) => setNotice({ kind, text });
@@ -80,7 +80,6 @@ export function InvoiceEditor() {
   const onGenerate = async () => {
     if (!build.isValid) {
       flash('error', form.paymentConfirmed ? 'Le PDF n’a pas été généré : corrige les champs signalés.' : 'Le PDF n’a pas été généré : confirme d’abord la réception du règlement intégral.');
-      if (Object.keys(build.errors).some((k) => k.startsWith('issuer.'))) setIssuerOpen(true);
       showErrorsAndScroll();
       return;
     }
@@ -101,8 +100,9 @@ export function InvoiceEditor() {
   };
 
   const onReset = () => {
-    if (!window.confirm('Effacer toutes les informations de cette facture ? (le profil émetteur est conservé)')) return;
+    if (!window.confirm('Effacer toutes les informations de cette facture ? (l’émetteur revient à Business Brothers)')) return;
     setForm(emptyInvoiceForm());
+    lockIssuer();
     setShowErrors(false);
     setNotice(null);
   };
@@ -114,20 +114,6 @@ export function InvoiceEditor() {
     const reader = new FileReader();
     reader.onload = () => setIssuerField('logoDataUrl', String(reader.result));
     reader.readAsDataURL(file);
-  };
-
-  const onSaveIssuer = () => {
-    if (saveIssuerProfile(safeStorage, issuer)) {
-      setIssuerSaved(true);
-      flash('ok', 'Profil émetteur enregistré dans ce navigateur.');
-    } else flash('error', 'Impossible d’enregistrer le profil (stockage du navigateur indisponible).');
-  };
-
-  const onRestoreIssuer = () => {
-    if (!window.confirm('Revenir au profil émetteur par défaut (placeholders) ?')) return;
-    safeStorage.remove(ISSUER_STORAGE_KEY);
-    setIssuer({ ...defaultIssuerProfile, notApplicable: {} });
-    setIssuerSaved(false);
   };
 
   return (
@@ -172,98 +158,97 @@ export function InvoiceEditor() {
           )}
 
           {/* A. Émetteur */}
-          <section className={`form-card ${issuerOpen ? 'is-open' : ''}`}>
-            <header className="form-card-head" onClick={() => setIssuerOpen((o) => !o)}>
-              <div>
-                <h3>
-                  <span className="step">A</span> Émetteur
-                </h3>
-                <p className="muted small">
-                  {issuer.name} · {issuerSaved ? 'profil enregistré dans ce navigateur' : 'profil non enregistré'}
-                </p>
-              </div>
-              <button type="button" className="btn btn-ghost btn-small">
-                {issuerOpen ? 'Fermer' : 'Modifier'}
-              </button>
+          <section className="form-card is-open">
+            <header className="form-card-head">
+              <h3>
+                <span className="step">A</span> Émetteur
+              </h3>
             </header>
-            {issuerErrorCount > 0 && (
-              <p className="warn-inline">
-                Coordonnées émetteur incomplètes ({issuerErrorCount}) : la génération du PDF est bloquée. Les coordonnées internes (BB, ECC…) pouvant évoluer, vérifie-les avant chaque émission.
-              </p>
-            )}
-            {issuerOpen && (
-              <div className="form-card-body">
-                <div className="form-grid">
-                  <F label="Raison sociale" required error={err('issuer.name')} wide>
-                    <input className="input" value={issuer.name} onChange={(e) => setIssuerField('name', e.target.value)} />
-                  </F>
-                  <F label="Adresse" required error={err('issuer.address')} wide>
-                    <input className="input" value={issuer.address} onChange={(e) => setIssuerField('address', e.target.value)} />
-                  </F>
-                  <NAField label="Code postal" field="postalCode" issuer={issuer} error={err('issuer.postalCode')} onChange={setIssuerField} onNA={setIssuerNA} />
-                  <F label="Ville" required error={err('issuer.city')}>
-                    <input className="input" value={issuer.city} onChange={(e) => setIssuerField('city', e.target.value)} />
-                  </F>
-                  <F label="Pays" required error={err('issuer.country')}>
-                    <input className="input" value={issuer.country} onChange={(e) => setIssuerField('country', e.target.value)} />
-                  </F>
-                  <F label="Email" hint="Optionnel" error={err('issuer.email')}>
-                    <input className="input" value={issuer.email} onChange={(e) => setIssuerField('email', e.target.value)} />
-                  </F>
-                  <NAField label="Numéro d'entreprise" field="companyNumber" issuer={issuer} error={err('issuer.companyNumber')} onChange={setIssuerField} onNA={setIssuerNA} />
-                  <NAField label="Numéro de TVA" field="vatNumber" issuer={issuer} error={err('issuer.vatNumber')} onChange={setIssuerField} onNA={setIssuerNA} />
-                  <F label="Nom de marque (pied de page)" hint="Ex. Business Brothers. Vide = raison sociale.">
-                    <input className="input" value={issuer.brandName} onChange={(e) => setIssuerField('brandName', e.target.value)} />
-                  </F>
-                  <F label="Préfixe des numéros" hint={`Ex. ${formatInvoiceNumber(prefix, 174)}`}>
-                    <div className="input-with-btn">
-                      <select
-                        className="input"
-                        value={customPrefix ? '__autre' : prefix}
-                        onChange={(e) => {
-                          if (e.target.value === '__autre') return setCustomPrefix(true);
-                          setCustomPrefix(false);
-                          setIssuerField('invoicePrefix', e.target.value);
-                        }}
-                      >
-                        {invoiceTemplate.prefixes.map((p) => (
-                          <option key={p} value={p}>
-                            {p}
-                          </option>
-                        ))}
-                        <option value="__autre">Autre…</option>
-                      </select>
-                      {customPrefix && (
-                        <input className="input" value={issuer.invoicePrefix} onChange={(e) => setIssuerField('invoicePrefix', e.target.value.replace(/[^A-Za-z]/g, '').toUpperCase())} placeholder="Lettres" />
-                      )}
+            {issuerErrorCount > 0 && <p className="warn-inline">Coordonnées émetteur incomplètes ({issuerErrorCount}) : la génération du PDF est bloquée.</p>}
+            <div className="form-card-body">
+              <div className="issuer-readonly" aria-label="Émetteur du document">
+                <div className="issuer-lines">
+                  {issuerLines(issuer).map((l, i) => (
+                    <div key={i} className={i === 0 ? 'issuer-name' : ''}>
+                      {l}
                     </div>
-                  </F>
-                  <F label="Logo (optionnel, PNG ou JPEG) — affiché en haut à droite" wide>
-                    <div className="logo-row">
-                      {issuer.logoDataUrl ? <img src={issuer.logoDataUrl} alt="Logo" className="logo-thumb" /> : <span className="muted small">Aucun logo : l’en-tête reste épuré, sans logo de remplacement.</span>}
-                      <label className="btn btn-ghost btn-small">
-                        Choisir un fichier
-                        <input type="file" accept="image/png,image/jpeg" hidden onChange={(e) => onLogo(e.target.files?.[0])} />
-                      </label>
-                      {issuer.logoDataUrl && (
-                        <button type="button" className="btn btn-ghost btn-small" onClick={() => setIssuerField('logoDataUrl', '')}>
-                          Retirer
-                        </button>
-                      )}
-                    </div>
-                  </F>
+                  ))}
                 </div>
-                <div className="form-card-actions">
-                  <button type="button" className="btn btn-secondary btn-small" onClick={onSaveIssuer}>
-                    Enregistrer le profil
-                  </button>
-                  <button type="button" className="btn btn-ghost btn-small" onClick={onRestoreIssuer}>
-                    Revenir au profil vide
-                  </button>
-                  <span className="muted small">Enregistré uniquement dans ce navigateur.</span>
-                </div>
+                {resolveLogo(issuer.logoDataUrl) && <img src={resolveLogo(issuer.logoDataUrl)!} alt="Logo" className="issuer-logo" />}
               </div>
-            )}
+
+              <label className="na-check issuer-unlock">
+                <input
+                  type="checkbox"
+                  checked={issuerUnlocked || confirmUnlock}
+                  onChange={(e) => {
+                    if (!e.target.checked) return lockIssuer();
+                    setConfirmUnlock(true);
+                  }}
+                />
+                Modifier exceptionnellement les informations de l’émetteur
+              </label>
+
+              {confirmUnlock && !issuerUnlocked && (
+                <div className="issuer-confirm" role="alertdialog" aria-label="Confirmer la modification de l’émetteur">
+                  <p>Les informations de l’émetteur sont normalement fixes. Confirmer la modification pour ce document ?</p>
+                  <div className="issuer-confirm-actions">
+                    <button type="button" className="btn btn-ghost btn-small" onClick={() => setConfirmUnlock(false)}>
+                      Annuler
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-small"
+                      onClick={() => {
+                        setIssuerUnlocked(true);
+                        setConfirmUnlock(false);
+                      }}
+                    >
+                      Confirmer la modification
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {issuerUnlocked && (
+                <>
+                  <p className="muted small">Modification valable pour ce document uniquement. Le prochain document reviendra à Business Brothers LIMITED.</p>
+                  <div className="form-grid">
+                    <F label="Raison sociale" required error={err('issuer.name')} wide>
+                      <input className="input" value={issuer.name} onChange={(e) => setIssuerField('name', e.target.value)} />
+                    </F>
+                    <F label="Adresse" required error={err('issuer.address')} wide hint="Une ligne par ligne d’adresse.">
+                      <textarea className="input" rows={3} value={issuer.address} onChange={(e) => setIssuerField('address', e.target.value)} />
+                    </F>
+                    <F label="Numéro d'entreprise" hint="Optionnel">
+                      <input className="input" value={issuer.companyNumber} onChange={(e) => setIssuerField('companyNumber', e.target.value)} />
+                    </F>
+                    <F label="Numéro de TVA" hint="Optionnel">
+                      <input className="input" value={issuer.vatNumber} onChange={(e) => setIssuerField('vatNumber', e.target.value)} />
+                    </F>
+                    <F label="Email" hint="Optionnel" error={err('issuer.email')}>
+                      <input className="input" value={issuer.email} onChange={(e) => setIssuerField('email', e.target.value)} />
+                    </F>
+                    <F label="Nom de marque (pied de page)" hint="Vide = raison sociale.">
+                      <input className="input" value={issuer.brandName} onChange={(e) => setIssuerField('brandName', e.target.value)} />
+                    </F>
+                    <F label="Logo de remplacement (PNG ou JPEG)" wide hint="Remplace le logo ECC pour ce document uniquement.">
+                      <div className="logo-row">
+                        <label className="btn btn-ghost btn-small">
+                          Choisir un fichier
+                          <input type="file" accept="image/png,image/jpeg" hidden onChange={(e) => onLogo(e.target.files?.[0])} />
+                        </label>
+                        {issuer.logoDataUrl && (
+                          <button type="button" className="btn btn-ghost btn-small" onClick={() => setIssuerField('logoDataUrl', '')}>
+                            Retirer
+                          </button>
+                        )}
+                      </div>
+                    </F>
+                  </div>
+                </>
+              )}
+            </div>
           </section>
 
           {/* B. Destinataire */}
@@ -324,6 +309,29 @@ export function InvoiceEditor() {
             </header>
             <div className="form-card-body">
               <div className="form-grid">
+                <F label="Préfixe des numéros" hint={`Ex. ${formatInvoiceNumber(prefix, 174)}`}>
+                  <div className="input-with-btn">
+                    <select
+                      className="input"
+                      value={customPrefix ? '__autre' : prefix}
+                      onChange={(e) => {
+                        if (e.target.value === '__autre') return setCustomPrefix(true);
+                        setCustomPrefix(false);
+                        setIssuerField('invoicePrefix', e.target.value);
+                      }}
+                    >
+                      {invoiceTemplate.prefixes.map((p) => (
+                        <option key={p} value={p}>
+                          {p}
+                        </option>
+                      ))}
+                      <option value="__autre">Autre…</option>
+                    </select>
+                    {customPrefix && (
+                      <input className="input" value={issuer.invoicePrefix} onChange={(e) => setIssuerField('invoicePrefix', e.target.value.replace(/[^A-Za-z]/g, '').toUpperCase())} placeholder="Lettres" />
+                    )}
+                  </div>
+                </F>
                 <F label="Numéro de facture" required error={err('number')} wide hint={lastSeq > 0 ? `Dernier numéro connu : n° ${lastSeq} → proposition ${formatInvoiceNumber(prefix, lastSeq + 1)}` : 'Renseigne le dernier numéro émis ci-dessous pour continuer la séquence.'}>
                   <div className="input-with-btn">
                     <input className="input" value={form.number} onChange={(e) => set('number', e.target.value)} placeholder={formatInvoiceNumber(prefix, (lastSeq || 0) + 1)} />
@@ -519,33 +527,6 @@ function F({ label, required, error, hint, wide, children }: { label: string; re
       {children}
       {error ? <FieldError text={error} /> : hint ? <span className="field-hint">{hint}</span> : null}
     </div>
-  );
-}
-
-/** Champ émetteur pouvant être explicitement marqué « non applicable ». */
-function NAField({
-  label,
-  field,
-  issuer,
-  error,
-  onChange,
-  onNA,
-}: {
-  label: string;
-  field: OptionalIssuerField;
-  issuer: IssuerProfile;
-  error?: string;
-  onChange: (key: OptionalIssuerField, value: string) => void;
-  onNA: (key: OptionalIssuerField, value: boolean) => void;
-}) {
-  const na = !!issuer.notApplicable?.[field];
-  return (
-    <F label={label} required={!na} error={error}>
-      <input className="input" value={na ? '' : issuer[field]} disabled={na} onChange={(e) => onChange(field, e.target.value)} placeholder={na ? 'Non applicable' : ''} />
-      <label className="na-check">
-        <input type="checkbox" checked={na} onChange={(e) => onNA(field, e.target.checked)} /> Non applicable
-      </label>
-    </F>
   );
 }
 

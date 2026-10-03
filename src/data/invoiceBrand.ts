@@ -47,10 +47,17 @@ export interface InvoiceBrand {
   grandTotal: { size: number; tracking: number; rule: boolean };
 }
 
+/**
+ * Logo officiel ECC : déposer le fichier dans src/assets/ecc-logo.png (ou .jpg / .jpeg).
+ * Détecté automatiquement ; tant qu'il est absent, l'en-tête reste sans logo (jamais de faux logo).
+ */
+const logoFiles = import.meta.glob('../assets/ecc-logo.{png,jpg,jpeg}', { eager: true, query: '?url', import: 'default' }) as Record<string, string>;
+const eccLogo = Object.values(logoFiles)[0] ?? null;
+
 export const invoiceBrand: InvoiceBrand = {
   brandName: '',
   footerText: '',
-  logo: { src: null, showPlaceholder: true, maxWidth: 165, maxHeight: 44 },
+  logo: { src: eccLogo, showPlaceholder: false, maxWidth: 165, maxHeight: 44 },
   primaryFont: 'EB Garamond',
   secondaryFont: 'Didact Gothic',
   titleTracking: 4.6,

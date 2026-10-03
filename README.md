@@ -53,7 +53,8 @@ tant qu'elle est vide, elle est signalée et la copie du message est bloquée.
 - **Direction artistique** (logo, polices, interlettrage, couleurs, filets, bandeaux/texture, pied de page, total) : `src/data/invoiceBrand.ts`. Les fichiers de marque officiels se déposent dans `src/assets/brand/` (voir le README de ce dossier).
 - Calculs en centimes entiers (`src/documents/core/totals.ts`), modes « montant HT » / « montant TTC ».
 - PDF réel généré dans le navigateur avec `@react-pdf/renderer` (`src/documents/pdf/`) ; polices EB Garamond, Didact Gothic et Inter embarquées (`src/documents/pdf/fonts/`, licences OFL). L'aperçu affiché est le PDF lui-même.
-- Profil émetteur : aucune société codée en dur (`src/data/issuerProfile.ts` = placeholders) ; à saisir avant génération, enregistrable dans le navigateur. Champs manquants ou placeholders → génération bloquée (code postal, n° d'entreprise et TVA peuvent être marqués « non applicable »).
+- **Émetteur par défaut : Business Brothers LIMITED** (`src/data/issuerProfile.ts`, seule source). Affiché en lecture seule ; aucune autre mention légale n'est inventée (n° d'entreprise, TVA, email : vides, donc non imprimés). Case « Modifier exceptionnellement… » + confirmation → champs modifiables pour CE document uniquement ; rien n'est enregistré, le document suivant (ou « Réinitialiser », ou un rechargement) revient à Business Brothers.
+- **Logo officiel ECC** : déposer le fichier dans `src/assets/ecc-logo.png` (ou `.jpg` / `.jpeg`). Détecté automatiquement, utilisé dans l'aperçu et dans le PDF (ratio respecté). Tant qu'il est absent, l'en-tête reste sans logo.
 - Génération impossible sans la case « Je confirme que le règlement intégral du client a bien été reçu ».
 - Numéros : proposition `ECC0174` (préfixe ECC / BB / autre), modifiable ; la séquence continue à partir du « dernier numéro émis » saisi et des PDF générés dans ce navigateur (aucune donnée client stockée).
 

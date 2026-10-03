@@ -8,7 +8,7 @@ import { issuerValue, type IssuerProfile } from '../core/issuer';
 import { invoiceBrand } from '../../data/invoiceBrand';
 import { pdfStyles as s } from './theme';
 
-const clean = (lines: (string | false | undefined | null)[]) => lines.map((l) => (l || '').trim()).filter(Boolean);
+const clean = (lines: (string | false | undefined | null)[]) => lines.flatMap((l) => (l || '').split('\n')).map((l) => l.trim()).filter(Boolean);
 
 /** Logo : asset officiel (invoiceBrand) > logo importé dans le profil > cadre neutre « LOGO ». */
 export function resolveLogo(profileLogo?: string): string | null {

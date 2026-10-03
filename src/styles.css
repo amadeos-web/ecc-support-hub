@@ -866,3 +866,13 @@ a.lib-row:hover { background: var(--surface-2); }
 .gate-ko a { text-decoration: underline; }
 .cs-phase { font-size: 14px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-3); margin-top: 6px; }
 @media (max-width: 700px) { .gate-outcomes { grid-template-columns: 1fr; } }
+
+/* Émetteur verrouillé */
+.issuer-readonly { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding: 14px 16px; border-radius: 10px; background: var(--bg-elev); border: 1px solid var(--border); }
+.issuer-lines { display: flex; flex-direction: column; gap: 2px; font-size: 14.5px; line-height: 1.4; }
+.issuer-name { font-weight: 700; }
+.issuer-logo { height: 40px; max-width: 160px; object-fit: contain; background: #fff; border-radius: 4px; padding: 4px; }
+.issuer-unlock { margin-top: 12px; font-size: 13.5px; }
+.issuer-confirm { margin-top: 10px; padding: 12px 14px; border-radius: 10px; border: 1px solid rgba(242, 184, 75, 0.55); background: var(--l2-soft); display: flex; flex-direction: column; gap: 10px; font-size: 14px; }
+.issuer-confirm p { margin: 0; }
+.issuer-confirm-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
