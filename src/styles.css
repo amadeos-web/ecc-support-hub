@@ -1043,3 +1043,8 @@ h2 { font-size: 19px; }
 .confirm-box input { accent-color: var(--accent); }
 .confirm-box.is-invalid { border-left-color: var(--l3); }
 .cs-checklist input, .na-check input { accent-color: var(--accent); }
+
+/* Liste des cas : titre à gauche, flèche seule à droite. */
+.case-line { grid-template-columns: minmax(0, 1fr) auto; }
+.treat-hero { padding: 4px 0 8px; }
+.treat-hero h1 { margin-bottom: 0; }
