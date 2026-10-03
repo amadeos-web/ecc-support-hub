@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { caseGuidance, getCase, getCategory, getInternalMessage, getRole, getTemplate, type SupportCase } from '../data';
+import { caseGuidance, getCase, getCategory, getRole, getTemplate, statusCheckExempt, type SupportCase } from '../data';
 import { href } from '../lib/router';
 import { MemberVarsPanel } from './MemberVarsPanel';
 import { TemplateCard } from './TemplateCard';
-import { InternalMessageCard } from './InternalMessageCard';
+import { StatusGate, WorkflowStrip } from './StatusGate';
 import { HandlingBadge, OwnerBadge } from './ui';
 
 /** Fiche opérationnelle : à vérifier → procédure → selon la situation → réponse → escalade → note. */
@@ -11,9 +11,10 @@ export function CaseSheet({ supportCase: c }: { supportCase: SupportCase }) {
   const [checked, setChecked] = useState<string[]>([]);
   const category = getCategory(c.category);
   const guidance = caseGuidance[c.id] ?? {};
-  const internal = c.internalMessageIds.map(getInternalMessage).filter((m) => m !== undefined);
+  const gated = !statusCheckExempt.has(c.id);
+  /** Prénom / nom / email sont déjà collectés dans le contrôle du statut. */
+  const toAsk = gated ? c.infoToCollect.filter((i) => !['Prénom', 'Nom', 'Email', 'Email utilisé lors de l’inscription'].includes(i)) : c.infoToCollect;
   const memberMsgs = c.memberMessages.map((m) => ({ ref: m, tpl: getTemplate(m.templateId) })).filter((m) => m.tpl);
-  const needsMemberInfo = internal.length > 0 || c.infoToCollect.some((i) => /nom|email/i.test(i));
   const toggle = (k: string) => setChecked((p) => (p.includes(k) ? p.filter((x) => x !== k) : [...p, k]));
   const escalate = c.escalation || c.handling === 'ne-pas-traiter';
   const role = c.escalation ? getRole(c.escalation.to) : undefined;
@@ -48,20 +49,24 @@ export function CaseSheet({ supportCase: c }: { supportCase: SupportCase }) {
         </div>
       </header>
 
-      {needsMemberInfo ? <MemberVarsPanel compact fields={['prenom', 'nom', 'email']} title="Informations du membre" /> : <MemberVarsPanel compact />}
+      <WorkflowStrip gated={gated} />
 
-      {(c.checks.length > 0 || c.infoToCollect.length > 0) && (
+      {gated ? <StatusGate caseId={c.id} /> : <MemberVarsPanel compact fields={['prenom', 'nom', 'email']} title="Informations du membre" />}
+
+      <h2 className="cs-phase">Traitement de la demande</h2>
+
+      {(c.checks.length > 0 || toAsk.length > 0) && (
         <section className="cs-step">
           <h2>À vérifier</h2>
-          {c.infoToCollect.length > 0 && (
+          {toAsk.length > 0 && (
             <>
               <h3 className="cs-sub">À demander au membre</h3>
-              {checklist(c.infoToCollect)}
+              {checklist(toAsk)}
             </>
           )}
           {c.checks.length > 0 && (
             <>
-              {c.infoToCollect.length > 0 && <h3 className="cs-sub">À contrôler</h3>}
+              {toAsk.length > 0 && <h3 className="cs-sub">À contrôler</h3>}
               {checklist(c.checks)}
             </>
           )}
@@ -156,9 +161,6 @@ export function CaseSheet({ supportCase: c }: { supportCase: SupportCase }) {
               </div>
             )}
           </div>
-          {internal.map((m) => (
-            <InternalMessageCard key={m.id} message={m} />
-          ))}
         </section>
       )}
 

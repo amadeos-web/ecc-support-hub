@@ -67,13 +67,16 @@ describe('cohérence des données', () => {
     }
   });
 
-  it('les cas d’accès passent par la comptabilité avec le message interne', () => {
+  it('les cas d’accès sont transmis à la personne compétente (jamais traités par le SAV) ; le contrôle comptabilité est commun', () => {
     for (const id of ['cas-acces-v2-non-recu', 'cas-desabonnement-accidentel', 'cas-acces-retire-sans-explication']) {
       const c = supportCases.find((x) => x.id === id)!;
-      expect(c.escalation?.to).toBe('comptabilite');
-      expect(c.internalMessageIds).toContain('int-compta-acces');
+      expect(c.escalation?.to).toBe('gestion-acces');
+      expect(c.internalMessageIds).not.toContain('int-compta-acces');
       expect(c.doNot.some((d) => /inviter/.test(d))).toBe(true);
     }
+    const msg = internalMessages.find((m) => m.id === 'int-compta-acces')!;
+    expect(msg.to).toBe('comptabilite');
+    expect(msg.message).not.toMatch(/problème d.accès/i);
   });
 
   it('sujets sensibles conservés « À valider » (partage, remboursement, KYC, défaut de paiement)', () => {

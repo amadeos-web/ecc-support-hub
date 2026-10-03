@@ -15,9 +15,15 @@ export interface CaseGuidance {
 const MANAGER = 'validation d’un responsable nécessaire';
 const CONFIRM = 'à confirmer par un responsable';
 
+/** Cas sans contrôle du statut membre (la personne n'est pas un membre qui demande de l'aide). */
+export const statusCheckExempt = new Set(['cas-prospect', 'cas-hors-sujet']);
+
+/** Cas du référentiel à appliquer quand le membre n'est pas en règle. */
+export const NOT_IN_ORDER_CASE_ID = 'cas-defaut-paiement';
+
 export const caseGuidance: Record<string, CaseGuidance> = {
   'cas-acces-v2-non-recu': {
-    escalateWhen: 'Dès que tu as le prénom, le nom et l’email du membre.',
+    escalateWhen: 'Une fois le statut du membre confirmé en règle.',
     branches: [
       { when: 'Il manque des informations (email, KYC, accès actuels)', then: 'Demander les informations au membre avec la réponse « membre non identifié ».' },
       { when: 'Le membre n’a pas complété le KYC', then: 'Ouvrir le cas « Le membre indique qu’il n’a plus d’accès et reste introuvable (ancien membre) ».' },
@@ -27,7 +33,7 @@ export const caseGuidance: Record<string, CaseGuidance> = {
     escalateWhen: 'Uniquement si l’invitation a expiré.',
     branches: [
       { when: 'L’invitation n’a pas expiré', then: 'Expliquer que la facture à 0,00 USD est l’invitation (rien à payer) et demander de vérifier les spams / promotions.' },
-      { when: 'L’invitation a expiré', then: 'Envoyer le message interne à la comptabilité, puis confirmer au membre une fois la nouvelle invitation envoyée.' },
+      { when: 'L’invitation a expiré', then: 'Transmettre la demande à la personne compétente pour les accès, puis confirmer au membre une fois la nouvelle invitation envoyée.' },
     ],
     stepNotes: { 0: `Lien de l’invoice à joindre : ${CONFIRM} (où le trouver).` },
   },
@@ -35,7 +41,7 @@ export const caseGuidance: Record<string, CaseGuidance> = {
     escalateWhen: 'Si les vérifications (whop.com, même email, ordinateur, pas de VPN) ne règlent pas le problème.',
     branches: [
       { when: 'L’accès est actif sur l’adresse email du membre', then: 'Envoyer la réponse « email présent sur Whop ».' },
-      { when: 'Ça ne fonctionne toujours pas après les vérifications', then: 'Envoyer le message interne à la comptabilité.' },
+      { when: 'Ça ne fonctionne toujours pas après les vérifications', then: 'Transmettre la demande à la personne compétente pour les accès.' },
     ],
     stepNotes: { 1: `Guide Whop à envoyer : ${CONFIRM} (version officielle).` },
   },
@@ -54,11 +60,11 @@ export const caseGuidance: Record<string, CaseGuidance> = {
     escalateWhen: 'Dès que le membre est bloqué : transmettre avec l’étape bloquante et une capture.',
     stepNotes: { 2: `Validation manuelle du KYC et exceptions (pièce, visage, nom d’un proche) : ${MANAGER}.` },
   },
-  'cas-desabonnement-accidentel': { escalateWhen: 'Dès que tu as le prénom, le nom et l’email du membre.' },
-  'cas-acces-perdu-appareil': { escalateWhen: 'Dès que tu as le prénom, le nom et l’email du membre.' },
-  'cas-acces-retire-sans-explication': { escalateWhen: 'Dès que tu as le prénom, le nom et l’email du membre.' },
+  'cas-desabonnement-accidentel': { escalateWhen: 'Une fois le statut du membre confirmé en règle.' },
+  'cas-acces-perdu-appareil': { escalateWhen: 'Une fois le statut du membre confirmé en règle.' },
+  'cas-acces-retire-sans-explication': { escalateWhen: 'Une fois le statut du membre confirmé en règle.' },
   'cas-defaut-paiement': {
-    escalateWhen: 'Dès que tu as le prénom, le nom et l’email du membre.',
+    escalateWhen: 'Une fois le statut du membre confirmé en règle.',
     stepNotes: { 0: `Moyen de régularisation et délai déjà convenu avec un conseiller : ${MANAGER}.` },
   },
   'cas-probleme-echeancier': {
