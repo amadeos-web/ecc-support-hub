@@ -1,6 +1,7 @@
-import { categories, getCase, supportCases } from '../data';
+import { categories, getCase, guidedCaseIds, supportCases } from '../data';
 import { href } from '../lib/router';
 import { CaseSheet } from '../components/CaseSheet';
+import { GuidedCase } from '../components/GuidedCase';
 
 /** Page principale : « Que demande le membre ? » → cas → fiche opérationnelle. */
 export function TreatRequestPage({ caseId }: { caseId?: string }) {
@@ -11,7 +12,7 @@ export function TreatRequestPage({ caseId }: { caseId?: string }) {
         <a className="back-link" href={href('accueil')}>
           ← Autre demande
         </a>
-        <CaseSheet key={selected.id} supportCase={selected} />
+        {guidedCaseIds.has(selected.id) ? <GuidedCase key={selected.id} supportCase={selected} /> : <CaseSheet key={selected.id} supportCase={selected} />}
       </div>
     );
   }

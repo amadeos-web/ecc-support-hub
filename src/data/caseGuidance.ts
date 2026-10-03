@@ -7,7 +7,8 @@
  * Les points inconnus restent dans `toValidate` ; seules les consignes d'approbation (« validation d'un responsable nécessaire ») sont affichées.
  */
 export interface CaseGuidance {
-  branches?: { when: string; then: string }[];
+  /** `messageId` : réponse à proposer ; `caseId` : cas à ouvrir pour cette situation. */
+  branches?: { when: string; then: string; messageId?: string; caseId?: string }[];
   stepNotes?: Record<number, string>;
   escalateWhen?: string;
 }
@@ -18,14 +19,17 @@ const MANAGER = 'validation d’un responsable nécessaire';
 export const statusCheckExempt = new Set(['cas-prospect', 'cas-hors-sujet']);
 
 /** Cas du référentiel à appliquer quand le membre n'est pas en règle. */
+/** Cas déjà présentés sous forme de parcours guidé (les autres gardent la fiche actuelle). */
+export const guidedCaseIds = new Set(['cas-acces-v2-non-recu']);
+
 export const NOT_IN_ORDER_CASE_ID = 'cas-defaut-paiement';
 
 export const caseGuidance: Record<string, CaseGuidance> = {
   'cas-acces-v2-non-recu': {
     escalateWhen: 'Une fois le statut du membre confirmé en règle.',
     branches: [
-      { when: 'Il manque des informations (email, KYC, accès actuels)', then: 'Demander les informations au membre avec la réponse « membre non identifié ».' },
-      { when: 'Le membre n’a pas complété le KYC', then: 'Ouvrir le cas « Le membre indique qu’il n’a plus d’accès et reste introuvable (ancien membre) ».' },
+      { when: 'Il manque des informations (email, KYC, accès actuels)', then: 'Demander les informations au membre avec la réponse « membre non identifié ».', messageId: 'tpl-sav-client-non-identifie' },
+      { when: 'Le membre n’a pas complété le KYC', then: 'Ouvrir le cas « Le membre indique qu’il n’a plus d’accès et reste introuvable (ancien membre) ».', caseId: 'cas-absent-base-kyc' },
     ],
   },
   'cas-invitation-whop-0usd': {

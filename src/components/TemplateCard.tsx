@@ -71,9 +71,11 @@ export function TemplateCard({ template, favorite, onToggleFavorite, highlighted
             <span className="muted small">Prénom non renseigné : salutation générique</span>
           )}
           <div className="card-links">
-            <button type="button" className="link" onClick={() => setOpen((o) => !o)}>
-              {open ? 'Réduire' : 'Voir le message complet'}
-            </button>
+            {!compact && (
+              <button type="button" className="link" onClick={() => setOpen((o) => !o)}>
+                {open ? 'Réduire' : 'Voir le message complet'}
+              </button>
+            )}
             {!compact && (
               <button type="button" className="link" onClick={() => setShowSource((s) => !s)}>
                 {showSource ? 'Message personnalisé' : 'Texte source'}
