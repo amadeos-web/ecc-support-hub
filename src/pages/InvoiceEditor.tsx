@@ -15,6 +15,7 @@ import {
   type LineForm,
 } from '../documents/invoice/model';
 import type { IssuerProfile } from '../documents/core/issuer';
+import type { PDFDocumentProxy } from 'pdfjs-dist';
 import { issuerLines, resolveLogo } from '../documents/pdf/blocks';
 import { createLocalNumberStore, formatInvoiceNumber, proposeInvoiceNumber } from '../documents/core/numbering';
 import { formatMoney, formatRate } from '../documents/core/money';
@@ -537,20 +538,25 @@ function FieldError({ text }: { text?: string }) {
 /* ---------- Aperçu : le vrai PDF, rendu localement ---------- */
 
 function PdfPreview({ data, large = false, onEscape }: { data: InvoiceData; large?: boolean; onEscape?: () => void }) {
-  const [url, setUrl] = useState<string | null>(null);
+  const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [width, setWidth] = useState(0);
+  const frameRef = useRef<HTMLDivElement>(null);
 
+  // Rendu du PDF à chaque changement de données (légère temporisation pendant la saisie).
   useEffect(() => {
     let cancelled = false;
-    let created: string | null = null;
     setState((s) => (s === 'ready' ? 'ready' : 'loading'));
     const timer = window.setTimeout(async () => {
       try {
-        const { renderInvoicePdfBlob } = await loadPdfRenderer();
-        const blob = await renderInvoicePdfBlob(data);
-        if (cancelled) return;
-        created = URL.createObjectURL(blob);
-        setUrl(created);
+        const [{ renderInvoicePdfBlob }, { loadPdf, disposePdf }] = await Promise.all([loadPdfRenderer(), import('../documents/pdf/pdfPages')]);
+        const pdf = await loadPdf(await renderInvoicePdfBlob(data));
+        if (cancelled) return disposePdf(pdf);
+        setDoc((prev) => {
+          // L'ancien document n'est libéré qu'une fois le nouveau affiché.
+          if (prev) window.setTimeout(() => disposePdf(prev), 1000);
+          return pdf;
+        });
         setState('ready');
       } catch {
         if (!cancelled) setState('error');
@@ -559,13 +565,23 @@ function PdfPreview({ data, large = false, onEscape }: { data: InvoiceData; larg
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
-      // L'ancienne URL est libérée un peu plus tard, une fois la nouvelle affichée.
-      if (created) {
-        const old = created;
-        window.setTimeout(() => URL.revokeObjectURL(old), 5000);
-      }
     };
   }, [data, large]);
+
+  const docRef = useRef<PDFDocumentProxy | null>(null);
+  docRef.current = doc;
+  useEffect(() => () => void (docRef.current && import('../documents/pdf/pdfPages').then((m) => m.disposePdf(docRef.current!))), []);
+
+  // Largeur disponible : les pages s'adaptent au cadre.
+  useEffect(() => {
+    const el = frameRef.current;
+    if (!el) return;
+    const update = () => setWidth(Math.floor(el.clientWidth));
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => {
     if (!onEscape) return;
@@ -575,10 +591,30 @@ function PdfPreview({ data, large = false, onEscape }: { data: InvoiceData; larg
   }, [onEscape]);
 
   return (
-    <div className={`pdf-frame ${large ? 'is-large' : ''}`}>
-      {url && <iframe title="Aperçu de la facture" src={`${url}#toolbar=0&navpanes=0&view=FitH`} />}
-      {state === 'loading' && !url && <div className="pdf-status">Préparation de l’aperçu…</div>}
-      {state === 'error' && <div className="pdf-status">L’aperçu n’a pas pu être généré (vérifie le logo).</div>}
+    <div ref={frameRef} className={`pdf-frame ${large ? 'is-large' : ''}`}>
+      {doc && width > 0 && (
+        <div className="pdf-pages" aria-label="Aperçu de la facture">
+          {Array.from({ length: doc.numPages }, (_, i) => (
+            <PdfPageCanvas key={`${doc.fingerprints[0]}-${i}`} doc={doc} page={i + 1} width={width} />
+          ))}
+        </div>
+      )}
+      {state === 'loading' && !doc && <div className="pdf-status">Préparation de l’aperçu…</div>}
+      {state === 'error' && <div className="pdf-status">L’aperçu n’a pas pu être généré. Réessaie ; si le problème persiste, vérifie le logo (PNG ou JPEG).</div>}
     </div>
   );
+}
+
+function PdfPageCanvas({ doc, page, width }: { doc: PDFDocumentProxy; page: number; width: number }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    let cancelled = false;
+    import('../documents/pdf/pdfPages').then(({ renderPage }) => {
+      if (!cancelled && ref.current) renderPage(doc, page, ref.current, width).catch((e) => console.error('pdf-page', e));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [doc, page, width]);
+  return <canvas ref={ref} className="pdf-page" />;
 }
