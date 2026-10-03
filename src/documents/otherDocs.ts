@@ -2,40 +2,41 @@ import type { AttestationModel, QuoteModel } from './models';
 import { attestationTemplate as A } from '../data/otherDocsTemplate';
 import { formatDate } from '../lib/documentCalc';
 
-/** Un point bloquant : message + section du formulaire où le corriger. */
+/** Un point bloquant : champ concerné (`key`) et message court affiché sous ce champ. */
 export interface DocIssue {
-  section: string;
+  key: string;
   message: string;
 }
 
+/**
+ * Devis : seul l'indispensable bloque : un client (société, OU prénom + nom) et une prestation chiffrée.
+ * Numéro, adresse, email, TVA, notes restent facultatifs et ne sont imprimés que s'ils sont renseignés.
+ */
 export function quoteIssues(m: QuoteModel): DocIssue[] {
   const out: DocIssue[] = [];
-  if (!m.societe.trim() && !(m.prenom.trim() && m.nom.trim())) out.push({ section: 'Client', message: 'Renseigne la société, ou le prénom et le nom du client.' });
-  if (!m.numeroDevis.trim()) out.push({ section: 'Devis', message: 'Renseigne le numéro de devis.' });
-  if (!m.dateDevis) out.push({ section: 'Devis', message: 'Renseigne la date du devis.' });
-  const lines = m.lignes.filter((l) => l.label.trim());
-  if (lines.length === 0) out.push({ section: 'Lignes / prestations', message: 'Ajoute au moins une prestation avec sa désignation.' });
-  if (lines.some((l) => !(l.unitPriceHT > 0))) out.push({ section: 'Lignes / prestations', message: 'Renseigne le prix de chaque prestation.' });
+  if (!m.societe.trim() && !(m.prenom.trim() && m.nom.trim())) out.push({ key: 'identity', message: 'Renseigne la société, ou le prénom et le nom du client.' });
+  if (!m.lignes.some((l) => l.label.trim() && l.unitPriceHT > 0)) out.push({ key: 'ligne', message: 'Renseigne la désignation et le prix d’au moins une prestation.' });
   return out;
 }
 
+/** Attestation : le membre et la formation. Les dates et le statut ne bloquent pas. */
 export function attestationIssues(m: AttestationModel): DocIssue[] {
   const out: DocIssue[] = [];
-  if (!m.prenom.trim() || !m.nom.trim()) out.push({ section: 'Membre', message: 'Renseigne le prénom et le nom du membre.' });
-  if (!m.formation.trim()) out.push({ section: 'Formation', message: 'Renseigne la formation suivie.' });
-  if (!m.dateDebut) out.push({ section: 'Formation', message: 'Renseigne la date de début.' });
+  if (!m.prenom.trim()) out.push({ key: 'prenom', message: 'Renseigne le prénom.' });
+  if (!m.nom.trim()) out.push({ key: 'nom', message: 'Renseigne le nom.' });
+  if (!m.formation.trim()) out.push({ key: 'formation', message: 'Renseigne la formation.' });
   return out;
 }
 
-/** Texte de l'attestation, partagé entre le PDF et son aperçu. */
+/** Texte de l'attestation, partagé entre le PDF et son aperçu (les mentions vides ne sont pas imprimées). */
 export function attestationParagraphs(m: AttestationModel, issuerName: string) {
   return {
     intro: `${issuerName} atteste que ${m.prenom.trim()} ${m.nom.trim()} est inscrit(e) à la formation ${m.formation.trim()}.`,
     details: [
-      `${A.startLabel} : ${formatDate(m.dateDebut)}`,
+      m.dateDebut && `${A.startLabel} : ${formatDate(m.dateDebut)}`,
       `${A.endLabel} : ${m.dateFin ? formatDate(m.dateFin) : A.endOngoing}`,
-      `${A.statusLabel} : ${m.statut}`,
-    ],
+      m.statut && `${A.statusLabel} : ${m.statut}`,
+    ].filter((x): x is string => Boolean(x)),
     closing: A.closing,
     madeOn: `${A.madeOn} ${formatDate(m.dateGeneration)}`,
   };

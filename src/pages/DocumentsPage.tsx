@@ -15,7 +15,8 @@ import {
 import { PdfPreview } from '../components/PdfPreview';
 import { PdfExportStatus, usePdfExport } from '../components/PdfExport';
 import { freshIssuerProfile } from '../data/issuerProfile';
-import { attestationIssues, quoteIssues } from '../documents/otherDocs';
+import { attestationIssues, quoteIssues, type DocIssue } from '../documents/otherDocs';
+import { focusFirstInvalid } from '../lib/focusInvalid';
 import { buildDocumentFileName } from '../documents/core/fileName';
 import { InvoiceEditor } from './InvoiceEditor';
 import { PageHeader } from '../components/ui';
@@ -27,6 +28,12 @@ export function DocumentsPage({ typeId }: { typeId?: string }) {
   const [fullPreview, setFullPreview] = useState(false);
   const issuer = useMemo(freshIssuerProfile, []);
   const exporter = usePdfExport();
+  /** Premier champ manquant après un clic sur « Générer le PDF » (message sous le champ, pas de liste). */
+  const [blocked, setBlocked] = useState<{ issue: DocIssue; tick: number } | null>(null);
+  useEffect(() => {
+    if (blocked) window.setTimeout(() => focusFirstInvalid(), 30);
+  }, [blocked]);
+  useEffect(() => setBlocked(null), [type]);
 
   useEffect(() => {
     if (!fullPreview) return;
@@ -52,7 +59,16 @@ export function DocumentsPage({ typeId }: { typeId?: string }) {
       ? buildDocumentFileName('Devis', quote.numeroDevis, quote.societe || `${quote.prenom} ${quote.nom}`)
       : buildDocumentFileName('Attestation', '', `${attestation.prenom} ${attestation.nom}`);
   const docKey = type === 'devis' ? quote : attestation;
-  const generate = () => issues.length === 0 && exporter.run(make, fileName);
+  const shown = blocked && issues.find((i) => i.key === blocked.issue.key) ? blocked.issue : null;
+  const generate = () => {
+    if (issues.length > 0) {
+      setFullPreview(false);
+      setBlocked({ issue: issues[0], tick: Date.now() });
+      return;
+    }
+    setBlocked(null);
+    void exporter.run(make, fileName);
+  };
   const preview = <PdfPreview docKey={docKey} make={make} />;
 
   return (
@@ -79,8 +95,7 @@ export function DocumentsPage({ typeId }: { typeId?: string }) {
         <button
           type="button"
           className="btn btn-secondary"
-          disabled={exporter.busy || issues.length > 0}
-          title={issues.length > 0 ? 'Complète d’abord les points listés ci-dessous' : undefined}
+          disabled={exporter.busy}
           onClick={generate}
         >
           {exporter.busy ? 'Génération…' : 'Générer le PDF'}
@@ -95,21 +110,10 @@ export function DocumentsPage({ typeId }: { typeId?: string }) {
       </div>
 
       <PdfExportStatus result={exporter.result} onAgain={exporter.again} onClose={exporter.clear} />
-      {issues.length > 0 && (
-        <ul className="todo-list todo-inline" aria-label="Points à compléter">
-          {issues.map((i) => (
-            <li key={i.message}>
-              {i.message}
-              <span className="muted"> — {i.section}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-
       <div className="doc-layout">
         <div className="doc-form">
-          {type === 'devis' && <QuoteForm m={quote} set={setQuote} />}
-          {type === 'attestation' && <AttestationForm m={attestation} set={setAttestation} />}
+          {type === 'devis' && <QuoteForm m={quote} set={setQuote} issue={shown} />}
+          {type === 'attestation' && <AttestationForm m={attestation} set={setAttestation} issue={shown} />}
         </div>
         <div className="doc-preview">{preview}</div>
       </div>
@@ -135,11 +139,12 @@ export function DocumentsPage({ typeId }: { typeId?: string }) {
 
 /* ---------- Champs ---------- */
 
-function Field({ label, children, wide }: { label: string; children: ReactNode; wide?: boolean }) {
+function Field({ label, children, wide, error }: { label: string; children: ReactNode; wide?: boolean; error?: string }) {
   return (
-    <label className={`field ${wide ? 'field-wide' : ''}`}>
+    <label className={`field ${wide ? 'field-wide' : ''} ${error ? 'is-invalid' : ''}`}>
       <span className="field-label">{label}</span>
       {children}
+      {error && <span className="field-error">{error}</span>}
     </label>
   );
 }
@@ -171,12 +176,12 @@ function numberInput<T>(m: T, set: Setter<T>, key: keyof T, step = '0.01') {
   );
 }
 
-function CustomerFields<T extends CustomerInfo>({ m, set }: { m: T; set: Setter<T> }) {
+function CustomerFields<T extends CustomerInfo>({ m, set, issue }: { m: T; set: Setter<T>; issue: DocIssue | null }) {
   return (
     <fieldset className="form-section">
       <legend>Client</legend>
       <div className="form-grid">
-        <Field label="Prénom">{textInput(m, set, 'prenom')}</Field>
+        <Field label="Prénom" error={issue?.key === 'identity' ? issue.message : undefined}>{textInput(m, set, 'prenom')}</Field>
         <Field label="Nom">{textInput(m, set, 'nom')}</Field>
         <Field label="Société (optionnel)">{textInput(m, set, 'societe')}</Field>
         <Field label="Email">{textInput(m, set, 'email', 'email')}</Field>
@@ -202,17 +207,18 @@ function CurrencySelect<T extends { devise: string }>({ m, set }: { m: T; set: S
 
 /* ---------- Formulaires ---------- */
 
-function QuoteForm({ m, set }: { m: QuoteModel; set: Setter<QuoteModel> }) {
+function QuoteForm({ m, set, issue }: { m: QuoteModel; set: Setter<QuoteModel>; issue: DocIssue | null }) {
   const totals = totalsFromLines(m.lignes);
+  const badLine = m.lignes.find((l) => !(l.label.trim() && l.unitPriceHT > 0));
   const updateLine = (id: string, patch: Partial<QuoteModel['lignes'][number]>) =>
     set((p) => ({ ...p, lignes: p.lignes.map((l) => (l.id === id ? { ...l, ...patch } : l)) }));
   return (
     <>
-      <CustomerFields m={m} set={set} />
+      <CustomerFields m={m} set={set} issue={issue} />
       <fieldset className="form-section">
         <legend>Devis</legend>
         <div className="form-grid">
-          <Field label="Numéro de devis">{textInput(m, set, 'numeroDevis', 'text', 'Ex. ECC-D-2026-0001')}</Field>
+          <Field label="Numéro de devis (optionnel)">{textInput(m, set, 'numeroDevis', 'text', 'Ex. ECC-D-2026-0001')}</Field>
           <Field label="Date du devis">{textInput(m, set, 'dateDevis', 'date')}</Field>
           <Field label="Validité (jours)">{numberInput(m, set, 'validiteJours', '1')}</Field>
           <Field label="Devise">
@@ -233,7 +239,7 @@ function QuoteForm({ m, set }: { m: QuoteModel; set: Setter<QuoteModel> }) {
           </div>
           {m.lignes.map((l) => (
             <div key={l.id} className="line">
-              <input className="input" value={l.label} placeholder="Désignation" onChange={(e) => updateLine(l.id, { label: e.target.value })} />
+              <input className={`input ${issue?.key === 'ligne' && l.id === badLine?.id ? 'has-error' : ''}`} value={l.label} placeholder="Désignation" onChange={(e) => updateLine(l.id, { label: e.target.value })} />
               <input
                 className="input"
                 type="number"
@@ -270,6 +276,7 @@ function QuoteForm({ m, set }: { m: QuoteModel; set: Setter<QuoteModel> }) {
             </div>
           ))}
         </div>
+        {issue?.key === 'ligne' && <span className="field-error">{issue.message}</span>}
         <button type="button" className="btn btn-ghost" onClick={() => set((p) => ({ ...p, lignes: [...p.lignes, newLine()] }))}>
           + Ajouter une ligne
         </button>
@@ -282,17 +289,18 @@ function QuoteForm({ m, set }: { m: QuoteModel; set: Setter<QuoteModel> }) {
   );
 }
 
-function AttestationForm({ m, set }: { m: AttestationModel; set: Setter<AttestationModel> }) {
+function AttestationForm({ m, set, issue }: { m: AttestationModel; set: Setter<AttestationModel>; issue: DocIssue | null }) {
+  const e = (k: string) => (issue?.key === k ? issue.message : undefined);
   return (
     <fieldset className="form-section">
       <legend>Attestation de suivi</legend>
       <div className="form-grid">
-        <Field label="Prénom">{textInput(m, set, 'prenom')}</Field>
-        <Field label="Nom">{textInput(m, set, 'nom')}</Field>
-        <Field label="Formation" wide>
+        <Field label="Prénom" error={e('prenom')}>{textInput(m, set, 'prenom')}</Field>
+        <Field label="Nom" error={e('nom')}>{textInput(m, set, 'nom')}</Field>
+        <Field label="Formation" wide error={e('formation')}>
           {textInput(m, set, 'formation')}
         </Field>
-        <Field label="Date de début">{textInput(m, set, 'dateDebut', 'date')}</Field>
+        <Field label="Date de début (optionnel)">{textInput(m, set, 'dateDebut', 'date')}</Field>
         <Field label="Date de fin (vide = en cours)">{textInput(m, set, 'dateFin', 'date')}</Field>
         <Field label="Statut / suivi">
           <select className="input" value={m.statut} onChange={(e) => set((p) => ({ ...p, statut: e.target.value }))}>

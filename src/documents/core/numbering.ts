@@ -34,7 +34,7 @@ export function proposeInvoiceNumber(store: NumberStore, prefix: string): string
 
 export function validateInvoiceNumber(numero: string): string | null {
   const s = numero.trim();
-  if (!s) return 'Numéro de facture requis';
+  if (!s) return 'Renseigne le numéro de facture.';
   if (s.length > 30) return '30 caractères maximum';
   if (!/^[A-Za-z0-9][A-Za-z0-9\-_/.]*$/.test(s)) return 'Numéro : lettres, chiffres et - _ / . uniquement';
   return null;

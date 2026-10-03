@@ -11,13 +11,14 @@ describe('facture : champs obligatoires et règles', () => {
     const r = buildInvoice(emptyInvoiceForm(), testIssuer);
     expect(r.isValid).toBe(false);
     expect(r.errors).toMatchObject({
-      'client.identity': 'Client : société ou prénom + nom requis',
-      'client.address': 'Adresse du client requise',
-      number: 'Numéro de facture requis',
+      'client.identity': 'Renseigne la société, ou le prénom et le nom du client.',
+      number: 'Renseigne le numéro de facture.',
       'lines.0.unitPrice': 'Montant requis',
       'lines.0.vatRate': 'Taux de TVA à choisir',
-      paymentConfirmed: 'Confirme que le règlement intégral du client a bien été reçu',
+      paymentConfirmed: 'Coche la confirmation : le règlement intégral doit avoir été reçu.',
     });
+    // L'adresse, la ville et le pays du client sont facultatifs : ils ne bloquent pas.
+    expect(Object.keys(r.errors)).not.toContain('client.address');
   });
   it('description par défaut pré-remplie, taux de TVA jamais pré-rempli', () => {
     const l = emptyInvoiceForm().lines[0];

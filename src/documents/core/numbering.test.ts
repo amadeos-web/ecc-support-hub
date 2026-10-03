@@ -27,8 +27,8 @@ describe('numérotation (format ECC0174)', () => {
     expect(proposeInvoiceNumber(store, 'ECC')).toBe('ECC0175');
   });
   it('refuse un numéro vide ou invalide', () => {
-    expect(validateInvoiceNumber('')).toMatch(/requis/);
-    expect(validateInvoiceNumber('   ')).toMatch(/requis/);
+    expect(validateInvoiceNumber('')).toMatch(/Renseigne le numéro/);
+    expect(validateInvoiceNumber('   ')).toMatch(/Renseigne le numéro/);
     expect(validateInvoiceNumber('ECC 0174')).not.toBeNull();
     expect(validateInvoiceNumber('ECC0174')).toBeNull();
   });

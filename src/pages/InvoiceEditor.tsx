@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { freshIssuerProfile } from '../data/issuerProfile';
 import { invoiceTemplate } from '../data/invoiceTemplate';
 import {
@@ -15,6 +15,7 @@ import {
 } from '../documents/invoice/model';
 import type { IssuerProfile } from '../documents/core/issuer';
 import { PdfPreview } from '../components/PdfPreview';
+import { focusFirstInvalid } from '../lib/focusInvalid';
 import { PdfExportStatus, usePdfExport } from '../components/PdfExport';
 import { issuerLines } from '../documents/pdf/blocks';
 import eccLogoMercure from '../assets/ecc-logo-mercure.png';
@@ -28,9 +29,6 @@ const RATE_PRESETS = ['0', '6', '12', '21', '5,5', '10', '20'];
 
 const loadPdfRenderer = () => import('../documents/pdf/render');
 
-/** Où se corrige chaque point bloquant. */
-const anchorOf = (key: string) => (key.startsWith('issuer.') ? 'sec-emetteur' : key.startsWith('client.') ? 'sec-destinataire' : key.startsWith('lines') ? 'sec-prestation' : key === 'paymentConfirmed' ? 'sec-confirmation' : 'sec-facture');
-const whereOf = (key: string) => ({ 'sec-emetteur': 'section A, Émetteur', 'sec-destinataire': 'section B, Destinataire', 'sec-prestation': 'section D, Prestation', 'sec-confirmation': 'case de confirmation du règlement', 'sec-facture': 'section C, Facture' })[anchorOf(key)];
 
 export function InvoiceEditor() {
   const [form, setForm] = useState<InvoiceForm>(emptyInvoiceForm);
@@ -38,17 +36,19 @@ export function InvoiceEditor() {
   const [issuer, setIssuer] = useState<IssuerProfile>(freshIssuerProfile);
   const [issuerUnlocked, setIssuerUnlocked] = useState(false);
   const [confirmUnlock, setConfirmUnlock] = useState(false);
-  const [showErrors, setShowErrors] = useState(false);
+  /** Premier champ manquant après un clic sur « Générer le PDF » (jamais de liste d'erreurs). */
+  const [blocked, setBlocked] = useState<{ key: string; tick: number } | null>(null);
   const exporter = usePdfExport();
   const busy = exporter.busy;
   const [notice, setNotice] = useState<{ kind: 'ok' | 'error' | 'info'; text: string } | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
-  const summaryRef = useRef<HTMLDivElement>(null);
   const numberStore = useMemo(() => createLocalNumberStore(safeStorage), []);
 
   const build = useMemo(() => buildInvoice(form, issuer), [form, issuer]);
-  const err = (key: string) => (showErrors ? build.errors[key] : undefined);
-  const errorList = [...new Set(Object.values(build.errors))];
+  const err = (key: string) => (blocked?.key === key ? build.errors[key] : undefined);
+  useEffect(() => {
+    if (blocked) window.setTimeout(() => focusFirstInvalid(), 30);
+  }, [blocked]);
   const t = build.draft.totals;
   const cur = form.currency;
   const prefix = issuer.invoicePrefix.trim().toUpperCase() || 'ECC';
@@ -56,7 +56,6 @@ export function InvoiceEditor() {
   const lastSeq = useMemo(() => numberStore.lastSequence(), [numberStore, reference, notice]);
   const numberAlreadyUsed = form.number.trim() !== '' && numberStore.isUsed(form.number);
   const fileName = buildDocumentFileName('Facture', form.number, clientFileName(form.client));
-  const issuerErrorCount = Object.keys(build.errors).filter((k) => k.startsWith('issuer.')).length;
   const prefixIsPreset = invoiceTemplate.prefixes.includes(prefix);
   const [customPrefix, setCustomPrefix] = useState(!prefixIsPreset);
 
@@ -73,23 +72,17 @@ export function InvoiceEditor() {
 
   const flash = (kind: 'ok' | 'error' | 'info', text: string) => setNotice({ kind, text });
 
-  const showErrorsAndScroll = () => {
-    setShowErrors(true);
-    window.setTimeout(() => summaryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
-  };
-
-  const onPreview = () => {
-    setShowErrors(true);
-    setPreviewOpen(true);
-  };
+  const onPreview = () => setPreviewOpen(true);
 
   const makeBlob = () => loadPdfRenderer().then((m) => m.renderInvoicePdfBlob(build.draft));
 
   const onGenerate = async () => {
     if (!build.isValid) {
-      showErrorsAndScroll();
+      setPreviewOpen(false);
+      setBlocked({ key: Object.keys(build.errors)[0], tick: Date.now() });
       return;
     }
+    setBlocked(null);
     if (numberAlreadyUsed && !window.confirm(`Le numéro ${form.number.trim()} a déjà servi à générer un PDF dans ce navigateur.\nGénérer quand même ?`)) return;
     setNotice(null);
     const delivery = await exporter.run(makeBlob, fileName);
@@ -100,7 +93,7 @@ export function InvoiceEditor() {
     if (!window.confirm('Effacer toutes les informations de cette facture ? (l’émetteur revient à Business Brothers)')) return;
     setForm(emptyInvoiceForm());
     lockIssuer();
-    setShowErrors(false);
+    setBlocked(null);
     setNotice(null);
     exporter.clear();
   };
@@ -120,7 +113,7 @@ export function InvoiceEditor() {
         <button type="button" className="btn btn-secondary" onClick={onPreview}>
           Prévisualiser
         </button>
-        <button type="button" className="btn btn-primary" onClick={onGenerate} disabled={busy || !build.isValid} title={build.isValid ? undefined : 'Complète d’abord les points listés sous le résumé'}>
+        <button type="button" className="btn btn-primary" onClick={onGenerate} disabled={busy}>
           {busy ? 'Génération…' : 'Générer le PDF'}
         </button>
         <button type="button" className="btn btn-ghost" onClick={onReset}>
@@ -145,18 +138,6 @@ export function InvoiceEditor() {
 
       <div className="invoice-layout">
         <div className="invoice-form">
-          <div ref={summaryRef} />
-          {showErrors && errorList.length > 0 && (
-            <div className="error-summary" role="alert">
-              <strong>{errorList.length === 1 ? '1 point à corriger' : `${errorList.length} points à corriger`} avant de générer le PDF :</strong>
-              <ul>
-                {errorList.map((e) => (
-                  <li key={e}>{e}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
           {/* A. Émetteur */}
           <section id="sec-emetteur" className="form-card is-open">
             <header className="form-card-head">
@@ -164,7 +145,6 @@ export function InvoiceEditor() {
                 <span className="step">A</span> Émetteur
               </h3>
             </header>
-            {issuerErrorCount > 0 && <p className="warn-inline">Coordonnées émetteur incomplètes ({issuerErrorCount}) : la génération du PDF est bloquée.</p>}
             <div className="form-card-body">
               <div className="issuer-readonly" aria-label="Émetteur du document">
                 <div className="issuer-lines">
@@ -259,9 +239,8 @@ export function InvoiceEditor() {
               </h3>
             </header>
             <div className="form-card-body">
-              {err('client.identity') && <span className="field-error">{err('client.identity')}</span>}
               <div className="form-grid">
-                <F label="Société" hint="Si le client facture au nom d’une société" wide>
+                <F label="Société" hint="Si le client facture au nom d’une société" wide error={err('client.identity')}>
                   <input className="input" value={form.client.company} onChange={(e) => setClient('company', e.target.value)} autoComplete="off" />
                 </F>
                 <F label="Prénom" error={err('client.firstName')}>
@@ -270,16 +249,16 @@ export function InvoiceEditor() {
                 <F label="Nom" error={err('client.lastName')}>
                   <input className="input" value={form.client.lastName} onChange={(e) => setClient('lastName', e.target.value)} autoComplete="off" />
                 </F>
-                <F label="Adresse" required error={err('client.address')} wide>
+                <F label="Adresse" wide>
                   <input className="input" value={form.client.address} onChange={(e) => setClient('address', e.target.value)} autoComplete="off" />
                 </F>
                 <F label="Code postal">
                   <input className="input" value={form.client.postalCode} onChange={(e) => setClient('postalCode', e.target.value)} autoComplete="off" />
                 </F>
-                <F label="Ville" required error={err('client.city')}>
+                <F label="Ville">
                   <input className="input" value={form.client.city} onChange={(e) => setClient('city', e.target.value)} autoComplete="off" />
                 </F>
-                <F label="Pays" required error={err('client.country')}>
+                <F label="Pays">
                   <input className="input" value={form.client.country} onChange={(e) => setClient('country', e.target.value)} autoComplete="off" />
                 </F>
                 <F label="N° d'entreprise / SIRET" hint="Optionnel — libellé imprimé au choix">
@@ -477,27 +456,15 @@ export function InvoiceEditor() {
             </div>
             <div className="sum-foot">
               <span className="muted small">Montants saisis en {form.priceMode}</span>
-              {build.isValid ? <span className="ok-text small">Prête à générer</span> : <span className="warn-text small">{errorList.length} point(s) à compléter</span>}
             </div>
             <label id="sec-confirmation" className={`confirm-box ${form.paymentConfirmed ? 'is-checked' : ''} ${err('paymentConfirmed') ? 'is-invalid' : ''}`}>
               <input type="checkbox" checked={form.paymentConfirmed} onChange={(e) => set('paymentConfirmed', e.target.checked)} />
               <span>{invoiceTemplate.paymentConfirmation}</span>
             </label>
-            <button type="button" className="btn btn-primary sum-generate" onClick={onGenerate} disabled={busy || !build.isValid} title={build.isValid ? undefined : 'Complète d’abord les points listés sous le résumé'}>
+            <FieldError text={err('paymentConfirmed')} />
+            <button type="button" className="btn btn-primary sum-generate" onClick={onGenerate} disabled={busy}>
               {busy ? 'Génération…' : 'Générer le PDF'}
             </button>
-            {!build.isValid && (
-              <ul className="todo-list" aria-label="Points à compléter">
-                {Object.entries(build.errors).map(([key, message]) => (
-                  <li key={key}>
-                    <a href={`#${anchorOf(key)}`} onClick={(e) => { e.preventDefault(); document.getElementById(anchorOf(key))?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }}>
-                      {message}
-                    </a>
-                    <span className="muted"> — {whereOf(key)}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
           </div>
           <PdfPreview docKey={build.draft} make={makeBlob} />
           <p className="muted small">Fichier : {fileName}</p>
@@ -510,7 +477,7 @@ export function InvoiceEditor() {
             <div className="modal-bar">
               <span>Aperçu exact du PDF{build.isValid ? '' : ' — brouillon incomplet'}</span>
               <div className="modal-bar-actions">
-                <button type="button" className="btn btn-primary btn-small" onClick={onGenerate} disabled={busy || !build.isValid} title={build.isValid ? undefined : 'Complète d’abord les points listés sous le résumé'}>
+                <button type="button" className="btn btn-primary btn-small" onClick={onGenerate} disabled={busy}>
                   Générer le PDF
                 </button>
                 <button type="button" className="btn btn-ghost btn-small" onClick={() => setPreviewOpen(false)}>

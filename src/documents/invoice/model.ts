@@ -122,24 +122,21 @@ export function buildInvoice(form: InvoiceForm, issuer: IssuerProfile): BuildRes
 
   const c = form.client;
   const hasPerson = c.firstName.trim() !== '' || c.lastName.trim() !== '';
-  if (!c.company.trim() && !hasPerson) errors['client.identity'] = 'Client : société ou prénom + nom requis';
+  if (!c.company.trim() && !hasPerson) errors['client.identity'] = 'Renseigne la société, ou le prénom et le nom du client.';
   if (hasPerson && !c.company.trim()) {
-    requireText(errors, 'client.firstName', c.firstName, 'Prénom du client requis');
-    requireText(errors, 'client.lastName', c.lastName, 'Nom du client requis');
+    requireText(errors, 'client.firstName', c.firstName, 'Renseigne le prénom du client.');
+    requireText(errors, 'client.lastName', c.lastName, 'Renseigne le nom du client.');
   }
-  requireText(errors, 'client.address', c.address, 'Adresse du client requise');
-  requireText(errors, 'client.city', c.city, 'Ville du client requise');
-  requireText(errors, 'client.country', c.country, 'Pays du client requis');
   if (c.email.trim() && !isValidEmail(c.email)) errors['client.email'] = 'Email du client invalide';
 
   const numErr = validateInvoiceNumber(form.number);
   if (numErr) errors.number = numErr;
-  if (!isValidISODate(form.issueDate)) errors.issueDate = "Date d'émission requise";
+  if (!isValidISODate(form.issueDate)) errors.issueDate = "Renseigne la date d'émission.";
 
   const inputs: LineInput[] = [];
   form.lines.forEach((l, i) => {
     const n = form.lines.length > 1 ? ` (ligne ${i + 1})` : '';
-    requireText(errors, `lines.${i}.description`, l.description, `Description requise${n}`);
+    requireText(errors, `lines.${i}.description`, l.description, `Renseigne la description${n}.`);
     const q = parseQuantity(l.quantity);
     const p = parseAmount(l.unitPrice);
     const r = parseRate(l.vatRate);
@@ -151,7 +148,7 @@ export function buildInvoice(form: InvoiceForm, issuer: IssuerProfile): BuildRes
   });
   if (form.lines.length === 0) errors.lines = 'Au moins une ligne est requise';
 
-  if (!form.paymentConfirmed) errors.paymentConfirmed = 'Confirme que le règlement intégral du client a bien été reçu';
+  if (!form.paymentConfirmed) errors.paymentConfirmed = 'Coche la confirmation : le règlement intégral doit avoir été reçu.';
 
   const draft: InvoiceData = {
     issuer,

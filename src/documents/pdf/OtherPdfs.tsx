@@ -31,12 +31,12 @@ export function QuotePdf({ m, issuer }: { m: QuoteModel; issuer: IssuerProfile }
     <Document title={`Devis ${m.numeroDevis}`} author={brandName(issuer)} creator="ECC Support Hub" producer="ECC Support Hub" language="fr-FR">
       <Page size="A4" style={s.page}>
         <EccBands />
-        <EccHeader title={`${Q.title} #${m.numeroDevis || '—'}`} logo={resolveLogo(issuer.logoDataUrl)} />
+        <EccHeader title={m.numeroDevis.trim() ? `${Q.title} #${m.numeroDevis.trim()}` : Q.title} logo={resolveLogo(issuer.logoDataUrl)} />
         <Rule />
         <EccParties
           recipient={{ label: Q.recipientLabel, lines: recipient }}
           issuer={{ label: Q.issuerLabel, lines: issuerLines(issuer) }}
-          aside={<Text style={s.issuedOn}>{`${Q.dateLabel} ${formatDate(m.dateDevis) || '—'}`}</Text>}
+          aside={m.dateDevis ? <Text style={s.issuedOn}>{`${Q.dateLabel} ${formatDate(m.dateDevis)}`}</Text> : <Text style={s.issuedOn}> </Text>}
         />
         <Rule />
         <EccTable columns={Q.columns} rows={rows} />
