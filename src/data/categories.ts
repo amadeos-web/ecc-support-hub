@@ -12,7 +12,7 @@ export const categories: Category[] = [
   { id: 'factures-documents', filterLabel: 'Documents', label: 'Factures & documents', icon: '🧾', hint: 'Facture, devis, attestation' },
   { id: 'compte-membre', filterLabel: 'Compte', label: 'Compte membre', icon: '👤', hint: 'Identification, partage d’accès, informations du compte' },
   { id: 'technique', filterLabel: 'Technique', label: 'Problème technique', icon: '🛠', hint: 'Bug, vidéo qui ne se lit pas, plateforme' },
-  { id: 'autre', filterLabel: 'Autre', label: 'Autre demande', icon: '✉️', hint: 'Hors sujet, demandes non répertoriées' },
+  { id: 'autre', filterLabel: 'Autre', label: 'Autres demandes', icon: '✉️', hint: 'Hors sujet, demandes non répertoriées' },
 ];
 
 export const categoryLabel = (id: CategoryId): string => categories.find((c) => c.id === id)?.label ?? id;

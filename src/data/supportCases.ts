@@ -1,5 +1,6 @@
 import type { CategoryId, ProcedureStep, SupportCase } from './types';
 import { freshdeskObservations } from './freshdeskObservations';
+import { requestTitles } from './requestTitles';
 
 /**
  * BIBLIOTHÈQUE DES CAS SAV — 27 cas identifiés dans l'historique Freshdesk (01/04 → 02/10/2026).
@@ -27,7 +28,7 @@ type Input = Partial<SupportCase> & Pick<SupportCase, 'id' | 'title' | 'category
 const fdCase = (c: Input): SupportCase => {
   const obs = freshdeskObservations[c.id];
   return {
-    shortTitle: c.title,
+    shortTitle: requestTitles[c.id] ?? c.title,
     observedRequests: [],
     infoToCollect: [],
     checks: [],

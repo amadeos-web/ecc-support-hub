@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { caseStatus, categories, getCase, getCategory, statusInfo, supportCases, type CategoryId } from '../data';
+import { caseStatus, categories, getCase, statusInfo, supportCases } from '../data';
 import { href } from '../lib/router';
 import { searchCases } from '../lib/caseSearch';
 import { CaseSheet } from '../components/CaseSheet';
@@ -23,11 +23,12 @@ export function TreatRequestPage({ caseId }: { caseId?: string }) {
 
 function TreatHome() {
   const [query, setQuery] = useState('');
-  const [category, setCategory] = useState<CategoryId | null>(null);
 
   const matches = useMemo(() => searchCases(supportCases, query), [query]);
-  const results = category ? matches.filter((c) => c.category === category) : matches;
-  const countFor = (id: CategoryId) => matches.filter((c) => c.category === id).length;
+  const ranked = query.trim() !== '';
+  const sections = categories
+    .map((cat) => ({ cat, cases: matches.filter((c) => c.category === cat.id) }))
+    .filter((s) => s.cases.length > 0);
 
   return (
     <div className="page treat-home">
@@ -50,58 +51,43 @@ function TreatHome() {
         </div>
       </section>
 
-      <div className="filter-bar" role="group" aria-label="Filtrer par catégorie">
-        <button type="button" className={`filter-chip ${category === null ? 'is-active' : ''}`} onClick={() => setCategory(null)}>
-          Tous <span className="filter-count">{matches.length}</span>
-        </button>
-        {categories.map((cat) => {
-          const n = countFor(cat.id);
-          return (
-            <button
-              key={cat.id}
-              type="button"
-              className={`filter-chip ${category === cat.id ? 'is-active' : ''} ${n === 0 ? 'is-empty' : ''}`}
-              onClick={() => setCategory(category === cat.id ? null : cat.id)}
-            >
-              {cat.icon} {cat.filterLabel} <span className="filter-count">{n}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {results.length === 0 ? (
+      {sections.length === 0 && (
         <EmptyState>
           <p>Aucun cas ne correspond{query ? ` à « ${query} »` : ''}.</p>
           <a className="btn btn-secondary" href={href('traiter', 'cas-membre-non-identifie')}>
             Demander les informations au membre
           </a>
         </EmptyState>
-      ) : (
-        <ul className="case-grid">
-          {results.map((c) => {
-            const cat = getCategory(c.category);
-            return (
+      )}
+
+      {sections.map(({ cat, cases }) => (
+        <section key={cat.id} className="cs-section">
+          <h2 className="cs-section-head">
+            <span className="cs-section-title">
+              {cat.icon} {cat.label}
+            </span>
+            <span className="cs-section-count">
+              {cases.length} cas
+            </span>
+          </h2>
+          <p className="cs-section-hint">{cat.hint}</p>
+          <ul className="case-list">
+            {cases.map((c) => (
               <li key={c.id}>
-                <a href={href('traiter', c.id)} className="case-tile">
-                  <span className="case-tile-icon" aria-hidden>
-                    {cat?.icon}
-                  </span>
-                  <span className="case-tile-body">
-                    <span className="case-tile-title">{c.shortTitle}</span>
-                    <span className="case-tile-cat">{cat?.label}</span>
-                  </span>
-                  <span className="case-tile-status" title={statusInfo[caseStatus(c)].label} aria-label={statusInfo[caseStatus(c)].label}>
+                <a href={href('traiter', c.id)} className={`case-line ${ranked ? 'is-hit' : ''}`}>
+                  <span className="case-line-title">{c.shortTitle}</span>
+                  <span className="case-line-status" title={statusInfo[caseStatus(c)].label} aria-label={statusInfo[caseStatus(c)].label}>
                     {statusInfo[caseStatus(c)].icon}
                   </span>
-                  <span className="case-tile-arrow" aria-hidden>
+                  <span className="case-line-arrow" aria-hidden>
                     →
                   </span>
                 </a>
               </li>
-            );
-          })}
-        </ul>
-      )}
+            ))}
+          </ul>
+        </section>
+      ))}
     </div>
   );
 }
