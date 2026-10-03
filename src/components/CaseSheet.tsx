@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { caseGuidance, getCase, getCategory, getRole, getTemplate, statusCheckExempt, type SupportCase } from '../data';
-import { href } from '../lib/router';
+import { caseGuidance, getCategory, getRole, getTemplate, statusCheckExempt, type SupportCase } from '../data';
 import { MemberVarsPanel } from './MemberVarsPanel';
 import { TemplateCard } from './TemplateCard';
 import { StatusGate, WorkflowStrip } from './StatusGate';
@@ -16,9 +15,9 @@ export function CaseSheet({ supportCase: c }: { supportCase: SupportCase }) {
   const toAsk = gated ? c.infoToCollect.filter((i) => !['Prénom', 'Nom', 'Email', 'Email utilisé lors de l’inscription'].includes(i)) : c.infoToCollect;
   const memberMsgs = c.memberMessages.map((m) => ({ ref: m, tpl: getTemplate(m.templateId) })).filter((m) => m.tpl);
   const toggle = (k: string) => setChecked((p) => (p.includes(k) ? p.filter((x) => x !== k) : [...p, k]));
-  const escalate = c.escalation || c.handling === 'ne-pas-traiter';
-  const role = c.escalation ? getRole(c.escalation.to) : undefined;
-  const related = c.relatedCaseIds.map(getCase).filter((r) => r !== undefined);
+  const hasTreatment = c.checks.length > 0 || toAsk.length > 0 || c.steps.length > 0 || c.doNot.length > 0 || (guidance.branches?.length ?? 0) > 0;
+  const esc = c.escalation;
+  const role = esc ? getRole(esc.to) : undefined;
 
   const checklist = (items: string[]) => (
     <ul className="cs-checklist">
@@ -44,16 +43,18 @@ export function CaseSheet({ supportCase: c }: { supportCase: SupportCase }) {
           </div>
         )}
         <h1 className="cs-title">{c.shortTitle}</h1>
-        <div className="cs-meta">
-          <HandlingBadge handling={c.handling} />
-        </div>
+        {c.handling && (
+          <div className="cs-meta">
+            <HandlingBadge handling={c.handling} />
+          </div>
+        )}
       </header>
 
       <WorkflowStrip gated={gated} />
 
       {gated ? <StatusGate caseId={c.id} /> : <MemberVarsPanel compact fields={['prenom', 'nom', 'email']} title="Informations du membre" />}
 
-      <h2 className="cs-phase">Traitement de la demande</h2>
+      {hasTreatment && <h2 className="cs-phase">Traitement de la demande</h2>}
 
       {(c.checks.length > 0 || toAsk.length > 0) && (
         <section className="cs-step">
@@ -73,35 +74,35 @@ export function CaseSheet({ supportCase: c }: { supportCase: SupportCase }) {
         </section>
       )}
 
-      <section className="cs-step">
-        <h2>Procédure</h2>
-        {c.steps.length === 0 ? (
-          <p className="cs-pending">Procédure non définie : validation d’un responsable nécessaire.</p>
-        ) : (
-          <ol className="cs-steps">
-            {c.steps.map((s, i) => (
-              <li key={i} className={s.owner === 'sav' ? '' : 'is-other'}>
-                <div className="cs-step-main">
-                  <span className="cs-step-text">{s.text}</span>
-                  {s.owner !== 'sav' && <OwnerBadge owner={s.owner} />}
-                </div>
-                {guidance.stepNotes?.[i] && <p className="cs-pending">{guidance.stepNotes[i]}</p>}
-              </li>
-            ))}
-          </ol>
-        )}
-        {c.doNot.length > 0 && (
-          <div className="cs-donot">
-            <strong>🚫 À ne pas faire</strong>
-            <ul>
-              {c.doNot.map((d) => (
-                <li key={d}>{d}</li>
+      {(c.steps.length > 0 || c.doNot.length > 0) && (
+        <section className="cs-step">
+          {c.steps.length > 0 && <h2>Procédure</h2>}
+          {c.steps.length > 0 && (
+            <ol className="cs-steps">
+              {c.steps.map((s, i) => (
+                <li key={i} className={s.owner === 'sav' ? '' : 'is-other'}>
+                  <div className="cs-step-main">
+                    <span className="cs-step-text">{s.text}</span>
+                    {s.owner !== 'sav' && <OwnerBadge owner={s.owner} />}
+                  </div>
+                  {guidance.stepNotes?.[i] && <p className="cs-pending">{guidance.stepNotes[i]}</p>}
+                </li>
               ))}
-            </ul>
-          </div>
-        )}
-        {c.closingCriteria && <p className="muted small">Clôture : {c.closingCriteria}</p>}
-      </section>
+            </ol>
+          )}
+          {c.doNot.length > 0 && (
+            <div className="cs-donot">
+              <strong>🚫 À ne pas faire</strong>
+              <ul>
+                {c.doNot.map((d) => (
+                  <li key={d}>{d}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {c.steps.length > 0 && c.closingCriteria && <p className="muted small">Clôture : {c.closingCriteria}</p>}
+        </section>
+      )}
 
       {guidance.branches && guidance.branches.length > 0 && (
         <section className="cs-step">
@@ -117,18 +118,19 @@ export function CaseSheet({ supportCase: c }: { supportCase: SupportCase }) {
         </section>
       )}
 
-      <section className="cs-messages">
-        <h2>Réponse au membre</h2>
-        {memberMsgs.length === 0 && <p className="muted">Pas de modèle de réponse pour ce cas.</p>}
-        {memberMsgs.map(({ ref, tpl }) => (
-          <div key={ref.templateId} className="cs-msg">
-            {ref.note && <div className="cs-msg-moment">{ref.note}</div>}
-            <TemplateCard template={tpl!} expanded showCaseLink={false} compact />
-          </div>
-        ))}
-      </section>
+      {memberMsgs.length > 0 && (
+        <section className="cs-messages">
+          <h2>Réponse au membre</h2>
+          {memberMsgs.map(({ ref, tpl }) => (
+            <div key={ref.templateId} className="cs-msg">
+              {ref.note && <div className="cs-msg-moment">{ref.note}</div>}
+              <TemplateCard template={tpl!} expanded showCaseLink={false} compact />
+            </div>
+          ))}
+        </section>
+      )}
 
-      {escalate && (
+      {esc && (
         <section className="cs-step">
           <h2>Escalade</h2>
           <div className="cs-escalation">
@@ -140,26 +142,16 @@ export function CaseSheet({ supportCase: c }: { supportCase: SupportCase }) {
             )}
             <div>
               <span className="muted small">À qui</span>
-              <strong>{role ? `${role.label}${role.contact ? ` — ${role.contact}` : ''}` : 'Responsable à confirmer'}</strong>
+              <strong>{role ? `${role.label}${role.contact ? ` — ${role.contact}` : ''}` : esc.to}</strong>
             </div>
-            {c.escalation && (
-              <>
-                <div>
-                  <span className="muted small">À transmettre</span>
-                  <span>{c.escalation.infoToTransmit.join(' · ')}</span>
-                </div>
-                <div>
-                  <span className="muted small">Pourquoi</span>
-                  <span>{c.escalation.why}</span>
-                </div>
-              </>
-            )}
-            {!c.escalation && (
-              <div>
-                <span className="muted small">À transmettre</span>
-                <span>{c.infoToCollect.join(' · ') || 'La demande du membre'}</span>
-              </div>
-            )}
+            <div>
+              <span className="muted small">À transmettre</span>
+              <span>{esc.infoToTransmit.join(' · ')}</span>
+            </div>
+            <div>
+              <span className="muted small">Pourquoi</span>
+              <span>{esc.why}</span>
+            </div>
           </div>
         </section>
       )}
@@ -175,18 +167,6 @@ export function CaseSheet({ supportCase: c }: { supportCase: SupportCase }) {
         </section>
       )}
 
-      {related.length > 0 && (
-        <section className="cs-related">
-          <h3>Voir aussi</h3>
-          <div className="cs-related-list">
-            {related.map((r) => (
-              <a key={r.id} href={href('traiter', r.id)} className="related-chip">
-                {r.shortTitle}
-              </a>
-            ))}
-          </div>
-        </section>
-      )}
     </article>
   );
 }

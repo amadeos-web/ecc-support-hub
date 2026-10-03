@@ -49,10 +49,10 @@ export function StatusGate({ caseId }: { caseId: string }) {
           <span>Ne poursuis pas le traitement normal.</span>
           {notInOrder ? (
             <span>
-              Voir <a href={href('traiter', notInOrder.id)}>{notInOrder.shortTitle}</a>. Si ce cas ne correspond pas : procédure à définir (validation d’un responsable nécessaire).
+              Voir <a href={href('traiter', notInOrder.id)}>{notInOrder.shortTitle}</a>.
             </span>
           ) : (
-            <span>Applique la procédure ci-dessous. Si elle ne correspond pas : procédure à définir (validation d’un responsable nécessaire).</span>
+            <span>Applique la procédure ci-dessous.</span>
           )}
         </div>
       </div>

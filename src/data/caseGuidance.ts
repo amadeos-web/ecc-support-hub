@@ -4,7 +4,7 @@
  *  - `branches`   : « Selon la situation » (si … → …) ;
  *  - `stepNotes`  : mention sobre sous une étape (index 0 = 1re étape) quand un responsable doit trancher ;
  *  - `escalateWhen` : moment où il faut escalader.
- * Les points réellement inconnus restent ici et dans `toValidate` ; l'agent ne voit qu'une consigne courte.
+ * Les points inconnus restent dans `toValidate` ; seules les consignes d'approbation (« validation d'un responsable nécessaire ») sont affichées.
  */
 export interface CaseGuidance {
   branches?: { when: string; then: string }[];
@@ -13,7 +13,6 @@ export interface CaseGuidance {
 }
 
 const MANAGER = 'validation d’un responsable nécessaire';
-const CONFIRM = 'à confirmer par un responsable';
 
 /** Cas sans contrôle du statut membre (la personne n'est pas un membre qui demande de l'aide). */
 export const statusCheckExempt = new Set(['cas-prospect', 'cas-hors-sujet']);
@@ -35,7 +34,6 @@ export const caseGuidance: Record<string, CaseGuidance> = {
       { when: 'L’invitation n’a pas expiré', then: 'Expliquer que la facture à 0,00 USD est l’invitation (rien à payer) et demander de vérifier les spams / promotions.' },
       { when: 'L’invitation a expiré', then: 'Transmettre la demande à la personne compétente pour les accès, puis confirmer au membre une fois la nouvelle invitation envoyée.' },
     ],
-    stepNotes: { 0: `Lien de l’invoice à joindre : ${CONFIRM} (où le trouver).` },
   },
   'cas-whop-payant-v1': {
     escalateWhen: 'Si les vérifications (whop.com, même email, ordinateur, pas de VPN) ne règlent pas le problème.',
@@ -43,14 +41,12 @@ export const caseGuidance: Record<string, CaseGuidance> = {
       { when: 'L’accès est actif sur l’adresse email du membre', then: 'Envoyer la réponse « email présent sur Whop ».' },
       { when: 'Ça ne fonctionne toujours pas après les vérifications', then: 'Transmettre la demande à la personne compétente pour les accès.' },
     ],
-    stepNotes: { 1: `Guide Whop à envoyer : ${CONFIRM} (version officielle).` },
   },
   'cas-acces-actif-mauvais-compte': {
     branches: [
       { when: 'Les accès sont actifs sur l’adresse du membre', then: 'Envoyer la réponse validée (bon compte, déconnexion / reconnexion, autre navigateur).' },
       { when: 'Le membre veut utiliser une autre adresse', then: 'Transmettre la demande. Ne pas transférer l’accès toi-même.' },
     ],
-    stepNotes: { 2: `Destinataire d’une demande de changement d’adresse : ${CONFIRM}.` },
   },
   'cas-absent-base-kyc': {
     escalateWhen: 'Une fois le KYC complété par le membre.',
@@ -69,11 +65,9 @@ export const caseGuidance: Record<string, CaseGuidance> = {
   },
   'cas-probleme-echeancier': {
     escalateWhen: 'Dès que tu as le détail des paiements et une preuve.',
-    stepNotes: { 1: `Interlocuteur (comptabilité ou finance) : ${CONFIRM}.` },
   },
   'cas-preuve-virement': {
     escalateWhen: 'Dès que tu as la preuve de virement.',
-    stepNotes: { 1: `Interlocuteur (comptabilité ou finance) : ${CONFIRM}.` },
   },
   'cas-date-prelevement': {
     stepNotes: { 0: `Demande de report pour difficultés financières : ${MANAGER}.` },
@@ -88,7 +82,6 @@ export const caseGuidance: Record<string, CaseGuidance> = {
       { when: 'L’incident est déjà connu', then: 'Envoyer la réponse « problème technique ».' },
       { when: 'L’incident n’est pas connu', then: 'Transmettre à l’équipe technique avec la vidéo et le code d’erreur.' },
     ],
-    stepNotes: { 1: `Qui indique qu’un incident est connu ou résolu : ${CONFIRM}.` },
   },
   'cas-video-telephone': {
     branches: [{ when: 'Le problème persiste après la réponse', then: 'Demander plus de détails au membre.' }],
@@ -101,7 +94,6 @@ export const caseGuidance: Record<string, CaseGuidance> = {
   },
   'cas-devis': {
     escalateWhen: 'Dès que tu as un numéro de téléphone.',
-    stepNotes: { 1: `Qui établit le devis : ${CONFIRM}.` },
   },
   'cas-attestation': {
     escalateWhen: 'Avant de générer l’attestation : faire valider les informations.',
@@ -109,6 +101,5 @@ export const caseGuidance: Record<string, CaseGuidance> = {
   },
   'cas-prospect': {
     escalateWhen: 'Dès que tu as un numéro de téléphone.',
-    stepNotes: { 1: `Contact commercial : ${CONFIRM}.` },
   },
 };
