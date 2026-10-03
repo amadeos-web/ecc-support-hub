@@ -522,7 +522,7 @@ mark { border-radius: 4px; padding: 0 3px; }
 .doc-footer { margin-top: auto; font-size: 10px; color: #8a90a0; border-top: 1px solid #e3e6ee; padding-top: 8px; }
 .doc-title-center { text-align: center; margin-top: 30px; }
 .doc-body { display: flex; flex-direction: column; gap: 14px; font-size: 13px; margin-top: 10px; }
-.doc-missing { color: #b8740b; background: #fff4dc; border-radius: 3px; padding: 0 3px; }
+.doc-missing { color: #8c4a38; text-decoration: underline dotted; text-underline-offset: 3px; }
 
 .modal { position: fixed; inset: 0; background: rgba(5, 7, 10, 0.75); z-index: 100; display: grid; place-items: center; padding: 24px; overflow-y: auto; }
 .modal-inner { width: min(820px, 100%); display: flex; flex-direction: column; gap: 10px; }
@@ -936,3 +936,44 @@ h2 { font-size: 19px; }
 .case-line:hover { box-shadow: inset 2px 0 0 var(--accent); }
 .big-search input:focus, .input:focus, input:focus, textarea:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); outline: none; }
 .link { color: var(--accent-hi); }
+
+/* =========================================================
+   Sobriété : aucune pastille, aucune capsule, aucun fond coloré autour d'un petit texte.
+   L'information reste affichée : texte, graisse, gris mercure, trait fin, point d'état minimal.
+   ========================================================= */
+.badge, .tag, .badge-handling, .badge-status, .badge-validation, .badge-source, .badge-demo, .badge-todo, .gate-tag, .owner, .step, .cs-num, .btn .count {
+  background: none; border: 0; border-radius: 0; padding: 0; box-shadow: none;
+}
+.badge-handling, .badge-status { font-size: 14px; font-weight: 600; color: var(--text); letter-spacing: 0.01em; }
+.cs-meta .badge-handling { font-size: 14px; padding: 0; }
+.badge-validation, .badge-source, .badge-demo, .badge-todo, .tag, .gate-tag {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-3);
+}
+.gate-tag { color: var(--accent); }
+.cs-tags .tag, .card-kicker .tag { color: var(--text-3); }
+.owner { font-size: 12px; color: var(--text-3); font-weight: 500; }
+.owner::before { content: '→ '; }
+.owner-sav, .owner-comptabilite, .owner-gestion-acces { background: none; color: var(--text-3); }
+.step, .cs-num { width: auto; height: auto; display: inline; color: var(--text-3); font-weight: 600; font-size: 13px; margin-right: 10px; letter-spacing: 0.08em; }
+.btn .count { color: var(--text-3); font-size: 12px; margin-left: 6px; }
+.cs-steps li::before { width: auto; height: auto; min-width: 20px; background: none; border-radius: 0; color: var(--accent); font-weight: 600; font-size: 15px; display: inline; }
+.cs-steps li.is-other::before { background: none; color: var(--accent); }
+.cs-steps li { border-radius: 6px; }
+.big-search-clear { background: none; width: auto; height: auto; border-radius: 0; font-size: 16px; padding: 4px 6px; }
+.big-search-clear:hover { color: var(--text); }
+.var-filled { background: none; color: var(--text); text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 3px; }
+.var-missing { background: none; color: var(--l2); text-decoration: underline dotted; text-underline-offset: 3px; }
+.seg-btn { border-radius: 4px; }
+.seg-btn.is-active { background: var(--surface-3); color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); }
+/* Encarts : un simple trait à gauche, sans fond coloré. */
+.cs-donot, .gate-ok, .gate-ko, .issuer-confirm, .warn-inline, .cs-handling, .cs-alert, .internal-card, .rule-banner {
+  background: none; border: 0; border-left: 2px solid var(--border-strong); border-radius: 0; padding: 6px 0 6px 16px;
+}
+.cs-donot { border-left-color: var(--l3); }
+.gate-ok { border-left-color: var(--l1); }
+.gate-ko { border-left-color: var(--l3); }
+.issuer-confirm, .warn-inline { border-left-color: var(--l2); }
+.warn-inline { margin: 0 16px 12px; }
+.template-vars { background: none; border: 0; border-left: 2px solid var(--border-strong); border-radius: 0; padding-left: 14px; }
+.gate-outcomes > div { border-radius: 0; }
+.paper-logo { height: 44px; width: 44px; object-fit: contain; align-self: flex-start; flex-shrink: 0; }

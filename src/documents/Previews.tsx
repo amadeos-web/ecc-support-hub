@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { issuer } from '../data';
 import { formatDate, formatMoney, lineTotalHT, totalsFromLines, addDays } from '../lib/documentCalc';
 import type { AttestationModel, CustomerInfo, QuoteModel } from './models';
+import eccLogo from '../assets/ecc-logo-noir.png';
 
 const orBlank = (v: string | undefined, label: string) => (v && v.trim() ? v : <span className="doc-missing">[{label}]</span>);
 
@@ -9,6 +10,7 @@ function Paper({ children }: { children: ReactNode }) {
   return (
     <div className="paper">
       <div className="paper-watermark">APERÇU — NON VALABLE</div>
+      <img className="paper-logo" src={eccLogo} alt="ECC" />
       {children}
     </div>
   );
