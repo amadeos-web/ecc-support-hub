@@ -1,5 +1,5 @@
 import { href, type PageId } from '../lib/router';
-import eccLogo from '../assets/ecc-logo-noir.png';
+import eccLogo from '../assets/ecc-logo-mercure.png';
 
 const NAV: { id: PageId; label: string; icon: string }[] = [
   { id: 'accueil', label: 'Traiter une demande', icon: '➤' },
@@ -10,10 +10,10 @@ export function Sidebar({ current }: { current: PageId }) {
   return (
     <aside className="sidebar">
       <a className="brand" href={href('accueil')}>
-        <img className="brand-logo" src={eccLogo} alt="ECC" />
+        <img className="brand-logo" src={eccLogo} alt="Ecommerce Capital Club" />
         <span className="brand-text">
-          <span className="brand-name">Support Hub</span>
-          <span className="brand-sub">Business Brothers</span>
+          <span className="brand-name">Ecommerce Capital Club</span>
+          <span className="brand-sub">Support Hub</span>
         </span>
       </a>
       <nav className="nav">

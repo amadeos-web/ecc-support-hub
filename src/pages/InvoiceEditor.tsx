@@ -16,7 +16,8 @@ import {
 } from '../documents/invoice/model';
 import type { IssuerProfile } from '../documents/core/issuer';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
-import { issuerLines, resolveLogo } from '../documents/pdf/blocks';
+import { issuerLines } from '../documents/pdf/blocks';
+import eccLogoMercure from '../assets/ecc-logo-mercure.png';
 import { createLocalNumberStore, formatInvoiceNumber, proposeInvoiceNumber } from '../documents/core/numbering';
 import { formatMoney, formatRate } from '../documents/core/money';
 import { buildDocumentFileName } from '../documents/core/fileName';
@@ -175,7 +176,7 @@ export function InvoiceEditor() {
                     </div>
                   ))}
                 </div>
-                {resolveLogo(issuer.logoDataUrl) && <img src={resolveLogo(issuer.logoDataUrl)!} alt="Logo" className="issuer-logo" />}
+                {issuer.logoDataUrl ? <img src={issuer.logoDataUrl} alt="Logo" className="issuer-logo is-custom" /> : <img src={eccLogoMercure} alt="Logo ECC" className="issuer-logo" />}
               </div>
 
               <label className="na-check issuer-unlock">
