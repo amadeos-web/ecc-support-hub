@@ -46,13 +46,13 @@ export function HandlingBadge({ handling, long = false }: { handling?: Handling;
   if (!handling)
     return (
       <span className="badge badge-handling h-unknown" title="Qui doit intervenir : non déterminé">
-        ⚪ {long ? 'Qui doit intervenir : à valider' : 'Responsable à valider'}
+        {long ? 'Qui doit intervenir : à valider' : 'Responsable à valider'}
       </span>
     );
   const h = handlingInfo[handling];
   return (
     <span className={`badge badge-handling h-${handling}`} title={h.description}>
-      {h.icon} {long ? h.label : h.short}
+      {long ? h.label : h.short}
     </span>
   );
 }
@@ -63,7 +63,7 @@ export function StatusBadge({ supportCase, large = false }: { supportCase: Pick<
   const info = statusInfo[st];
   return (
     <span className={`badge badge-status st-${st} ${large ? 'is-large' : ''}`} title={info.description}>
-      {info.icon} {info.label}
+      {info.label}
     </span>
   );
 }

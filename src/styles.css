@@ -977,3 +977,69 @@ h2 { font-size: 19px; }
 .template-vars { background: none; border: 0; border-left: 2px solid var(--border-strong); border-radius: 0; padding-left: 14px; }
 .gate-outcomes > div { border-radius: 0; }
 .paper-logo { height: 44px; width: 44px; object-fit: contain; align-self: flex-start; flex-shrink: 0; }
+
+/* =========================================================
+   Épure : peu de cadres, pas de halo. L'espace, la typographie et de fines lignes séparent.
+   ========================================================= */
+/* Recherche : ligne fine, compacte, intégrée à la page. */
+.treat-hero { padding: 4px 0 20px; }
+.big-search { align-items: center; }
+.big-search input, .big-search input:focus {
+  background: transparent; border: 0; border-bottom: 1px solid var(--border-strong); border-radius: 0; box-shadow: none; outline: none;
+  font-size: 15px; padding: 10px 34px 10px 30px; height: 40px;
+}
+.big-search input:focus { border-bottom-color: var(--accent); }
+.big-search input::placeholder { font-size: 14px; color: var(--text-3); }
+.big-search > span { left: 4px; font-size: 16px; color: var(--text-3); }
+.big-search-clear { right: 2px; }
+/* Focus des champs : simple changement de couleur de trait, sans halo. */
+.input:focus, input:focus, textarea:focus, select:focus { box-shadow: none; border-color: var(--accent); }
+/* Liste des cas : lignes séparées par un filet, sans cadre ni fond. */
+.case-list { border: 0; border-radius: 0; background: none; overflow: visible; }
+.case-list > li { border-top: 1px solid var(--border); }
+.case-list > li:last-child { border-bottom: 1px solid var(--border); }
+.case-list > li + li { border-top: 1px solid var(--border); }
+.case-line { padding: 14px 4px; box-shadow: none; }
+.case-line:hover { background: none; box-shadow: none; }
+.case-line:hover .case-line-title { color: var(--accent-hi); }
+.case-line-status { font-size: 12px; color: var(--text-3); opacity: 1; letter-spacing: 0.02em; }
+.case-line-title { font-weight: 500; }
+.cs-section-head { border-bottom: 0; padding-bottom: 0; }
+.cs-section-hint { margin: 4px 0 12px; }
+/* Fiche : sections sans cartes. */
+.cs-step { background: none; border: 0; border-top: 1px solid var(--border); border-radius: 0; padding: 26px 0 8px; }
+.cs-steps li, .cs-branches li { background: none; border: 0; border-bottom: 1px solid var(--border); border-radius: 0; padding: 12px 4px 12px 36px; }
+.cs-branches li { padding-left: 4px; }
+.cs-steps li::before { left: 4px; top: 12px; }
+.cs-steps li.is-other { border-color: var(--border); }
+.cs-gate { background: none; border: 0; border-top: 1px solid var(--border-strong); border-radius: 0; padding: 22px 0 8px; }
+.vars-panel, .vars-panel.is-compact { background: none; border: 0; border-radius: 0; padding: 4px 0; }
+.card { background: none; border: 0; border-top: 1px solid var(--border); border-radius: 0; padding: 14px 0; }
+.card.is-highlighted { box-shadow: none; border-color: var(--accent); }
+.internal-card, .template-card { background: none; }
+.template-text { background: var(--bg-elev); border: 0; border-radius: 6px; }
+/* Générateur de documents : formulaires sans encadrés, onglets soulignés. */
+.form-card { background: none; border: 0; border-top: 1px solid var(--border); border-radius: 0; }
+.form-card-head { padding: 16px 0 6px; }
+.form-card-head:not(:only-child) { border-bottom: 0; }
+.form-card-body { padding: 8px 0 20px; }
+.issuer-readonly { background: none; border: 0; border-radius: 0; padding: 4px 0 8px; }
+.sum-card { background: none; border: 0; border-top: 1px solid var(--border-strong); border-radius: 0; padding: 14px 0; }
+.doc-tabs { gap: 28px; margin-bottom: 18px; border-bottom: 1px solid var(--border); }
+.doc-tab { background: none; border: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: 10px 0 12px; margin-bottom: -1px; }
+.doc-tab.is-active { background: none; border-bottom-color: var(--accent); box-shadow: none; }
+.doc-tab:hover { background: none; }
+.seg-group { background: none; border: 0; padding: 0; gap: 18px; }
+.seg-btn { border-radius: 0; padding: 4px 0; border-bottom: 2px solid transparent; box-shadow: none; }
+.seg-btn.is-active { background: none; box-shadow: none; border-bottom-color: var(--accent); }
+.pdf-frame { border: 0; border-radius: 0; }
+.nav-item, .nav-item.is-active { border-radius: 0; }
+.nav-item.is-active { background: none; border-left-color: var(--accent); }
+.nav-item:hover { background: none; color: var(--text); }
+.btn, .input, input, select, textarea { border-radius: 4px; }
+.ok-text { color: var(--text-2); }
+.confirm-box, .confirm-box.is-checked { border: 0; border-left: 2px solid var(--border-strong); border-radius: 0; background: none; padding: 6px 0 6px 14px; }
+.confirm-box.is-checked { border-left-color: var(--accent); }
+.confirm-box input { accent-color: var(--accent); }
+.confirm-box.is-invalid { border-left-color: var(--l3); }
+.cs-checklist input, .na-check input { accent-color: var(--accent); }

@@ -77,9 +77,7 @@ function TreatHome() {
               <li key={c.id}>
                 <a href={href('traiter', c.id)} className={`case-line ${ranked ? 'is-hit' : ''}`}>
                   <span className="case-line-title">{c.shortTitle}</span>
-                  <span className="case-line-status" title={c.handling && handlingInfo[c.handling].short} aria-label={c.handling && handlingInfo[c.handling].short}>
-                    {c.handling && handlingInfo[c.handling].icon}
-                  </span>
+                  <span className="case-line-status">{c.handling && handlingInfo[c.handling].short}</span>
                   <span className="case-line-arrow" aria-hidden>
                     →
                   </span>

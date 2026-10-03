@@ -41,11 +41,11 @@ export function StatusGate({ caseId }: { caseId: string }) {
       {message && <InternalMessageCard message={message} />}
       <div className="gate-outcomes">
         <div className="gate-ok">
-          <strong>✅ Membre en règle</strong>
+          <strong>Membre en règle</strong>
           <span>Continue : traitement de la demande, plus bas.</span>
         </div>
         <div className="gate-ko">
-          <strong>⛔ Membre pas en règle</strong>
+          <strong>Membre pas en règle</strong>
           <span>Ne poursuis pas le traitement normal.</span>
           {notInOrder ? (
             <span>

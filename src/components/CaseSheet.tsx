@@ -92,7 +92,7 @@ export function CaseSheet({ supportCase: c }: { supportCase: SupportCase }) {
           )}
           {c.doNot.length > 0 && (
             <div className="cs-donot">
-              <strong>🚫 À ne pas faire</strong>
+              <strong>À ne pas faire</strong>
               <ul>
                 {c.doNot.map((d) => (
                   <li key={d}>{d}</li>
