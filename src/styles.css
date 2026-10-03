@@ -837,3 +837,14 @@ a.lib-row:hover { background: var(--surface-2); }
 .case-line-status { font-size: 11px; opacity: 0.8; }
 .case-line-arrow { color: var(--text-3); font-size: 18px; }
 .case-line:hover .case-line-arrow { color: var(--accent); }
+
+/* Fiche : sections épurées */
+.cs-step h2 { font-size: 18px; }
+.cs-sub { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); font-weight: 600; margin-top: 4px; }
+.cs-steps li { flex-direction: column; align-items: stretch; gap: 4px; position: relative; padding-left: 54px; }
+.cs-steps li::before { position: absolute; left: 14px; top: 12px; }
+.cs-step-main { display: flex; align-items: center; gap: 12px; justify-content: space-between; flex-wrap: wrap; }
+.cs-pending { margin: 0; font-size: 13.5px; color: var(--l2); }
+.cs-branches { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.cs-branches li { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: 10px; background: var(--bg-elev); border: 1px solid var(--border); font-size: 15px; }
+.cs-notes { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }

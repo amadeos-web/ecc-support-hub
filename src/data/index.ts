@@ -9,6 +9,8 @@ import { roles } from './roles';
 
 export * from './types';
 export * from './categories';
+export { caseGuidance } from './caseGuidance';
+export type { CaseGuidance } from './caseGuidance';
 export { getRole } from './roles';
 export { getInternalMessage } from './internalMessages';
 export { issuer, currencies, vatRates, attestationStatuses } from './documentTypes';

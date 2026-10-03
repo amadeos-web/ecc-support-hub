@@ -14,9 +14,11 @@ interface Props {
   /** Afficher le message en entier dès le départ (fiche « Traiter une demande »). */
   expanded?: boolean;
   showCaseLink?: boolean;
+  /** Version épurée (fiche SAV) : ni source, ni catégorie, ni texte source. */
+  compact?: boolean;
 }
 
-export function TemplateCard({ template, favorite, onToggleFavorite, highlighted, expanded = false, showCaseLink = true }: Props) {
+export function TemplateCard({ template, favorite, onToggleFavorite, highlighted, expanded = false, showCaseLink = true, compact = false }: Props) {
   const { vars, setVar } = useMemberVars();
   const [open, setOpen] = useState(expanded);
   const [showSource, setShowSource] = useState(false);
@@ -27,15 +29,17 @@ export function TemplateCard({ template, favorite, onToggleFavorite, highlighted
 
   return (
     <article id={`tpl-${template.id}`} className={`card template-card ${highlighted ? 'is-highlighted' : ''}`}>
-      <header className="card-head">
-        <div className="card-kicker">
-          <span>Cas</span>
-          <DemoBadge source={template.source} />
-          <CategoryTag id={template.category} />
-          {onToggleFavorite && <StarButton active={!!favorite} onToggle={onToggleFavorite} />}
-        </div>
-        <h3 className="card-case">{template.title}</h3>
-      </header>
+      {!compact && (
+        <header className="card-head">
+          <div className="card-kicker">
+            <span>Cas</span>
+            <DemoBadge source={template.source} />
+            <CategoryTag id={template.category} />
+            {onToggleFavorite && <StarButton active={!!favorite} onToggle={onToggleFavorite} />}
+          </div>
+          <h3 className="card-case">{template.title}</h3>
+        </header>
+      )}
 
       {extraVars.length > 0 && (
         <div className="template-vars">
@@ -50,7 +54,7 @@ export function TemplateCard({ template, favorite, onToggleFavorite, highlighted
         </div>
       )}
 
-      <div className="card-label">Message</div>
+      {!compact && <div className="card-label">Message</div>}
       {showSource ? (
         <pre className="template-text">{template.sourceMessage}</pre>
       ) : (
@@ -70,9 +74,11 @@ export function TemplateCard({ template, favorite, onToggleFavorite, highlighted
             <button type="button" className="link" onClick={() => setOpen((o) => !o)}>
               {open ? 'Réduire' : 'Voir le message complet'}
             </button>
-            <button type="button" className="link" onClick={() => setShowSource((s) => !s)}>
-              {showSource ? 'Message personnalisé' : 'Texte source'}
-            </button>
+            {!compact && (
+              <button type="button" className="link" onClick={() => setShowSource((s) => !s)}>
+                {showSource ? 'Message personnalisé' : 'Texte source'}
+              </button>
+            )}
             {showCaseLink && linkedCase && (
               <a className="link" href={href('traiter', linkedCase.id)}>
                 Fiche du cas →

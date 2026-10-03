@@ -1,7 +1,7 @@
 import { getRole, type InternalMessage } from '../data';
 import { useMemberVars } from '../lib/memberVars';
 import { missingVariables, renderTemplate, variableLabel } from '../lib/templateEngine';
-import { CopyButton, ValidationBadge } from './ui';
+import { CopyButton } from './ui';
 import { TemplateText } from './TemplateText';
 
 /** Message interne : toutes les variables sont obligatoires, la copie est bloquée sinon. */
@@ -14,10 +14,8 @@ export function InternalMessageCard({ message }: { message: InternalMessage }) {
       <header className="card-head">
         <div className="card-kicker">
           <span>Message interne → {getRole(message.to)?.label}</span>
-          <ValidationBadge status={message.validation} />
         </div>
         <h3 className="card-case">{message.title}</h3>
-        {message.note && <p className="muted small">{message.note}</p>}
       </header>
       <TemplateText body={message.message} vars={vars} optionalVars={required} />
       <footer className="card-foot">

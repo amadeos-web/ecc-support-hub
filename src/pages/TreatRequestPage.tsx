@@ -1,9 +1,12 @@
 import { useMemo, useState } from 'react';
-import { caseStatus, categories, getCase, statusInfo, supportCases } from '../data';
+import { categories, getCase, handlingInfo, supportCases, type SupportCase } from '../data';
 import { href } from '../lib/router';
 import { searchCases } from '../lib/caseSearch';
 import { CaseSheet } from '../components/CaseSheet';
 import { EmptyState } from '../components/ui';
+
+const handlingIcon = (c: SupportCase) => (c.handling ? handlingInfo[c.handling].icon : '⚪');
+const handlingLabel = (c: SupportCase) => (c.handling ? handlingInfo[c.handling].short : 'Responsable à confirmer');
 
 /** Page principale : « Que demande le membre ? » → cas → fiche opérationnelle. */
 export function TreatRequestPage({ caseId }: { caseId?: string }) {
@@ -76,8 +79,8 @@ function TreatHome() {
               <li key={c.id}>
                 <a href={href('traiter', c.id)} className={`case-line ${ranked ? 'is-hit' : ''}`}>
                   <span className="case-line-title">{c.shortTitle}</span>
-                  <span className="case-line-status" title={statusInfo[caseStatus(c)].label} aria-label={statusInfo[caseStatus(c)].label}>
-                    {statusInfo[caseStatus(c)].icon}
+                  <span className="case-line-status" title={handlingLabel(c)} aria-label={handlingLabel(c)}>
+                    {handlingIcon(c)}
                   </span>
                   <span className="case-line-arrow" aria-hidden>
                     →
