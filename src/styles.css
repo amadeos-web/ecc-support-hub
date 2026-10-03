@@ -1093,3 +1093,24 @@ h2 { font-size: 19px; }
 .rm-step.is-end .rm-num { color: var(--accent-hi); }
 .rm-step.is-end .rm-title { color: var(--text); }
 .rm-step.is-end .rm-main { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+
+/* Roadmap complète : tout est visible ; l'état se lit dans le contraste. */
+.rm-step { padding-bottom: 52px; }
+.rm-step::before { left: 15px; top: 36px; background: rgba(185, 189, 195, 0.28); }
+.rm-num { color: var(--text-3); font-size: 14px; padding-top: 5px; }
+.rm-title { display: inline-block; font-size: 17px; font-weight: 500; letter-spacing: 0.07em; text-transform: uppercase; padding-bottom: 9px; border-bottom: 1px solid rgba(185, 189, 195, 0.5); color: var(--text-2); }
+.rm-hint { margin-top: 12px; }
+.rm-body { margin-top: 20px; }
+.rm-step.is-active .rm-num { color: var(--accent-hi); }
+.rm-step.is-active .rm-title { color: var(--text); border-bottom-color: var(--accent); }
+.rm-step.is-done .rm-title { font-size: 17px; color: var(--text-3); border-bottom-color: rgba(185, 189, 195, 0.22); }
+.rm-step.is-done .rm-body { opacity: 0.5; }
+.rm-step.is-future .rm-num { color: var(--text-3); }
+.rm-step.is-future .rm-title { color: var(--text-2); }
+.rm-step.is-future .rm-body { opacity: 0.48; }
+.rm-step.is-future .rm-hint { opacity: 0.6; }
+.rm-block { display: flex; flex-direction: column; gap: 10px; padding-bottom: 6px; }
+.rm-block + .rm-block { border-top: 1px solid var(--border); padding-top: 18px; }
+.rm-step.is-end { padding-bottom: 8px; }
+.rm-step.is-end .rm-main { display: block; }
+.rm-step.is-future .rm-link { pointer-events: none; }

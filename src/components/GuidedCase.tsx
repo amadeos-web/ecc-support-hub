@@ -7,63 +7,60 @@ import { CopyButton } from './ui';
 import { TemplateCard } from './TemplateCard';
 import { TemplateText } from './TemplateText';
 
-type StepId = 'identify' | 'status' | 'result' | 'notInOrder' | 'verify' | 'transmit' | 'follow' | 'reply';
+type StepId = 'identify' | 'status' | 'result' | 'treat' | 'reply' | 'end';
+const ORDER: StepId[] = ['identify', 'status', 'result', 'treat', 'reply', 'end'];
 
-/** Parcours guidé : une fiche = une feuille de route verticale, révélée étape par étape. */
+/**
+ * Parcours guidé : la feuille de route COMPLÈTE est visible dès l'ouverture.
+ * L'étape active est contrastée, les suivantes restent lisibles (atténuées), les terminées s'effacent.
+ */
 export function GuidedCase({ supportCase: c }: { supportCase: SupportCase }) {
   const { vars, setVar } = useMemberVars();
-  const [reached, setReached] = useState(0);
+  const [active, setActive] = useState(0);
   const [choice, setChoice] = useState<'ok' | 'ko' | null>(null);
   const [openBranch, setOpenBranch] = useState<string | null>(null);
   const [checked, setChecked] = useState<string[]>([]);
   const refs = useRef<Record<string, HTMLElement | null>>({});
+  const first = useRef(true);
 
   const guidance = caseGuidance[c.id] ?? {};
   const statusMsg = getInternalMessage('int-compta-acces');
   const identity = ['prenom', 'nom', 'email'] as const;
   const identityDone = identity.every((k) => (vars[k] ?? '').trim() !== '');
   const toAsk = c.infoToCollect.filter((i) => !['Prénom', 'Nom', 'Email', 'Email utilisé lors de l’inscription'].includes(i));
-  const hasVerify = toAsk.length > 0 || c.checks.length > 0;
   const replyRef = c.memberMessages.find((m) => m.moment === 'resolution');
   const reply = getTemplate(replyRef?.templateId);
   const escalation = c.escalation;
   const role = escalation ? getRole(escalation.to) : undefined;
   const notInOrder = getCase(NOT_IN_ORDER_CASE_ID);
 
-  // Étapes affichées : uniquement celles que ce cas possède, selon le choix fait.
-  const ids: StepId[] = ['identify', 'status', 'result'];
-  if (choice === 'ko') ids.push('notInOrder');
-  if (choice === 'ok') {
-    if (hasVerify) ids.push('verify');
-    if (c.steps.length > 0) ids.push('transmit', 'follow');
-    if (reply) ids.push('reply');
-  }
-  const visible = ids.slice(0, reached + 1);
-  const last = visible[visible.length - 1];
-  const finished = choice === 'ok' && last === ids[ids.length - 1] && reached >= ids.length - 1;
+  // Étapes que ce cas possède réellement (aucune étape vide).
+  const hasTreat = toAsk.length > 0 || c.checks.length > 0 || c.steps.length > 0;
+  const ids = ORDER.filter((id) => (id !== 'treat' || hasTreat) && (id !== 'reply' || reply));
+  const activeId = ids[Math.min(active, ids.length - 1)];
 
-  const advance = (from: StepId) => {
-    const i = ids.indexOf(from);
-    setReached((r) => Math.max(r, i + 1));
-  };
+  const go = (id: StepId) => setActive(Math.max(0, ids.indexOf(id)));
+  const next = (from: StepId) => setActive(ids.indexOf(from) + 1);
 
-  // Le regard suit la progression : l'étape qui vient d'apparaître remonte en haut.
+  // Après une action, le regard suit : l'étape active remonte en haut (pas au chargement initial).
   useEffect(() => {
-    const el = refs.current[last];
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    const el = refs.current[activeId];
     if (el && typeof el.scrollIntoView === 'function') window.requestAnimationFrame(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }));
-  }, [last]);
+  }, [activeId]);
 
   const choose = (v: 'ok' | 'ko') => {
     setChoice(v);
-    setReached(3); // l'étape qui suit le choix apparaît immédiatement
+    go('treat');
   };
-
   const toggle = (k: string) => setChecked((p) => (p.includes(k) ? p.filter((x) => x !== k) : [...p, k]));
 
   const missing = statusMsg ? missingVariables(statusMsg.message, vars, []) : [];
-  const stepStatus = statusMsg ? renderTemplate(statusMsg.message, vars, []) : '';
 
-  const content: Record<StepId, { title: string; hint?: string; body: ReactNode; cta?: { label: string; disabled?: boolean } }> = {
+  const steps: Record<StepId, { title: string; hint?: string; body?: ReactNode; cta?: { label: string; disabled?: boolean } }> = {
     identify: {
       title: L.identify.title,
       body: (
@@ -85,114 +82,137 @@ export function GuidedCase({ supportCase: c }: { supportCase: SupportCase }) {
         <>
           <TemplateText body={statusMsg.message} vars={vars} />
           <div className="rm-actions">
-            <CopyButton text={stepStatus} label={L.status.copy} className="btn btn-secondary" disabled={missing.length > 0} disabledReason={`Renseigne d'abord : ${missing.map(variableLabel).join(', ')}`} />
+            <CopyButton
+              text={renderTemplate(statusMsg.message, vars, [])}
+              label={L.status.copy}
+              className="btn btn-secondary"
+              disabled={missing.length > 0}
+              disabledReason={`Renseigne d'abord : ${missing.map(variableLabel).join(', ')}`}
+            />
           </div>
         </>
-      ) : null,
+      ) : undefined,
       cta: { label: L.status.cta },
     },
     result: {
       title: L.result.title,
       body: (
-        <div className="rm-choice">
-          <button type="button" className={`btn ${choice === 'ok' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => choose('ok')}>
-            {L.result.ok}
-          </button>
-          <button type="button" className={`btn ${choice === 'ko' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => choose('ko')}>
-            {L.result.ko}
-          </button>
-        </div>
+        <>
+          <div className="rm-choice">
+            <button type="button" className={`btn ${choice === 'ok' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => choose('ok')}>
+              {L.result.ok}
+            </button>
+            <button type="button" className={`btn ${choice === 'ko' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => choose('ko')}>
+              {L.result.ko}
+            </button>
+          </div>
+          {choice && activeId !== 'result' && (
+            <button type="button" className="rm-link" onClick={() => { setChoice(null); go('result'); }}>
+              {L.result.change}
+            </button>
+          )}
+        </>
       ),
     },
-    notInOrder: {
-      title: L.result.koTitle,
-      hint: L.result.koHint,
-      body: notInOrder ? (
-        <a className="rm-link" href={href('traiter', notInOrder.id)}>
-          {notInOrder.shortTitle} →
-        </a>
-      ) : null,
-    },
-    verify: {
-      title: L.verify.title,
-      body: (
-        <>
-          {toAsk.length > 0 && <Checklist label={L.verify.ask} items={toAsk} checked={checked} onToggle={toggle} />}
-          {c.checks.length > 0 && <Checklist label={L.verify.check} items={c.checks} checked={checked} onToggle={toggle} />}
-          {guidance.branches && guidance.branches.length > 0 && (
-            <div className="rm-branches">
-              <div className="rm-sub">{L.verify.branches}</div>
-              {guidance.branches.map((b) => {
-                const tpl = getTemplate(b.messageId);
-                const target = getCase(b.caseId);
-                return (
-                  <div key={b.when} className="rm-branch">
-                    <strong>Si {b.when.charAt(0).toLowerCase() + b.when.slice(1)}</strong>
-                    <span>{b.then}</span>
-                    {target && (
-                      <a className="rm-link" href={href('traiter', target.id)}>
-                        {target.shortTitle} →
-                      </a>
-                    )}
-                    {tpl && (
-                      <>
-                        <button type="button" className="rm-link" onClick={() => setOpenBranch(openBranch === b.when ? null : b.when)}>
-                          {L.verify.showReply}
-                        </button>
-                        {openBranch === b.when && <TemplateCard template={tpl} expanded showCaseLink={false} compact />}
-                      </>
-                    )}
+    treat: {
+      title: L.treat.title,
+      hint: choice === 'ko' ? L.result.koHint : undefined,
+      body:
+        choice === 'ko' ? (
+          notInOrder && (
+            <a className="rm-link" href={href('traiter', notInOrder.id)}>
+              {notInOrder.shortTitle} →
+            </a>
+          )
+        ) : (
+          <>
+            {(toAsk.length > 0 || c.checks.length > 0) && (
+              <div className="rm-block">
+                <div className="rm-sub">{L.treat.verify}</div>
+                {toAsk.length > 0 && <Checklist label={L.treat.ask} items={toAsk} checked={checked} onToggle={toggle} />}
+                {c.checks.length > 0 && <Checklist label={L.treat.check} items={c.checks} checked={checked} onToggle={toggle} />}
+                {guidance.branches && guidance.branches.length > 0 && (
+                  <div className="rm-branches">
+                    <div className="rm-sub">{L.treat.branches}</div>
+                    {guidance.branches.map((b) => {
+                      const tpl = getTemplate(b.messageId);
+                      const target = getCase(b.caseId);
+                      return (
+                        <div key={b.when} className="rm-branch">
+                          <strong>Si {b.when.charAt(0).toLowerCase() + b.when.slice(1)}</strong>
+                          <span>{b.then}</span>
+                          {target && (
+                            <a className="rm-link" href={href('traiter', target.id)}>
+                              {target.shortTitle} →
+                            </a>
+                          )}
+                          {tpl && (
+                            <>
+                              <button type="button" className="rm-link" onClick={() => setOpenBranch(openBranch === b.when ? null : b.when)}>
+                                {L.treat.showReply}
+                              </button>
+                              {openBranch === b.when && <TemplateCard template={tpl} expanded showCaseLink={false} compact />}
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </>
-      ),
-      cta: { label: L.verify.cta },
-    },
-    transmit: {
-      title: L.transmit.title,
-      hint: c.steps[0]?.text,
-      body: (
-        <>
-          {escalation && (
-            <dl className="rm-facts">
-              <dt>{L.transmit.to}</dt>
-              <dd>{role ? `${role.label}${role.contact ? ` — ${role.contact}` : ''}` : escalation.to}</dd>
-              <dt>{L.transmit.what}</dt>
-              <dd>{escalation.infoToTransmit.map((k) => ({ Prénom: vars.prenom, Nom: vars.nom, Email: vars.email })[k as 'Prénom'] || k).join(' · ')}</dd>
-            </dl>
-          )}
-          {c.doNot.length > 0 && (
-            <div className="rm-donot">
-              <div className="rm-sub">{L.transmit.doNot}</div>
-              <ul>
-                {c.doNot.map((d) => (
-                  <li key={d}>{d}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </>
-      ),
-      cta: { label: L.transmit.cta },
-    },
-    follow: {
-      title: L.follow.title,
-      hint: c.steps[2]?.text,
-      body: c.steps[1] ? (
-        <p className="rm-text">
-          <span className="rm-muted">{getRole(c.steps[1].owner)?.label} : </span>
-          {c.steps[1].text}
-        </p>
-      ) : null,
-      cta: { label: L.follow.cta },
+                )}
+              </div>
+            )}
+            {c.steps[0] && (
+              <div className="rm-block">
+                <div className="rm-sub">{L.treat.transmit}</div>
+                <p className="rm-text">{c.steps[0].text}</p>
+                {escalation && (
+                  <dl className="rm-facts">
+                    <dt>{L.treat.to}</dt>
+                    <dd>{role ? `${role.label}${role.contact ? ` — ${role.contact}` : ''}` : escalation.to}</dd>
+                    <dt>{L.treat.what}</dt>
+                    <dd>{escalation.infoToTransmit.map((k) => ({ Prénom: vars.prenom, Nom: vars.nom, Email: vars.email })[k as 'Prénom'] || k).join(' · ')}</dd>
+                  </dl>
+                )}
+                {c.doNot.length > 0 && (
+                  <div className="rm-donot">
+                    <div className="rm-sub">{L.treat.doNot}</div>
+                    <ul>
+                      {c.doNot.map((d) => (
+                        <li key={d}>{d}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+            {c.steps[1] && (
+              <div className="rm-block">
+                <div className="rm-sub">{L.treat.follow}</div>
+                <p className="rm-text">
+                  <span className="rm-muted">{getRole(c.steps[1].owner)?.label} : </span>
+                  {c.steps[1].text}
+                </p>
+                {c.steps[2] && <p className="rm-text">{c.steps[2].text}</p>}
+              </div>
+            )}
+          </>
+        ),
+      cta: choice === 'ok' ? { label: L.treat.cta } : undefined,
     },
     reply: {
       title: L.reply.title,
       hint: replyRef?.note,
-      body: reply ? <TemplateCard template={reply} expanded showCaseLink={false} compact /> : null,
+      body: reply ? <TemplateCard template={reply} expanded showCaseLink={false} compact /> : undefined,
+      cta: { label: L.reply.cta },
+    },
+    end: {
+      title: L.end.title,
+      hint: c.closingCriteria,
+      body: (
+        <a className="rm-link" href={href('accueil')}>
+          {L.end.again} →
+        </a>
+      ),
     },
   };
 
@@ -202,51 +222,37 @@ export function GuidedCase({ supportCase: c }: { supportCase: SupportCase }) {
         <h1 className="cs-title">{c.shortTitle}</h1>
       </header>
       <ol className="rm">
-        {visible.map((id, i) => {
-          const s = content[id];
-          const isActive = id === last;
-          const isLast = i === visible.length - 1 && !finished;
+        {ids.map((id, i) => {
+          const s = steps[id];
+          const state = i < ids.indexOf(activeId) ? 'is-done' : i === ids.indexOf(activeId) ? 'is-active' : 'is-future';
           return (
             <li
               key={id}
               ref={(el) => {
                 refs.current[id] = el;
               }}
-              className={`rm-step ${isActive ? 'is-active' : 'is-done'} ${isLast ? 'is-last' : ''}`}
+              className={`rm-step ${state} ${i === ids.length - 1 ? 'is-last' : ''}`}
             >
-              <span className="rm-num">{String(i + 1).padStart(2, '0')}</span>
+              <span className="rm-num">{id === 'end' ? '' : String(i + 1).padStart(2, '0')}</span>
               <div className="rm-main">
                 <h2 className="rm-title">{s.title}</h2>
                 {s.hint && <p className="rm-hint">{s.hint}</p>}
-                <div className="rm-body">{s.body}</div>
-                {s.cta && isActive && (
+                {s.body && (
+                  <div className="rm-body" inert={state === 'is-future' && id !== 'end'}>
+                    {s.body}
+                  </div>
+                )}
+                {s.cta && state === 'is-active' && (
                   <div className="rm-actions">
-                    <button type="button" className="btn btn-primary" disabled={s.cta.disabled} onClick={() => advance(id)}>
+                    <button type="button" className="btn btn-primary" disabled={s.cta.disabled} onClick={() => next(id)}>
                       {s.cta.label}
                     </button>
                   </div>
-                )}
-                {id === 'result' && choice && !isActive && (
-                  <button type="button" className="rm-link" onClick={() => { setChoice(null); setReached(2); }}>
-                    {L.result.change}
-                  </button>
                 )}
               </div>
             </li>
           );
         })}
-        {finished && (
-          <li className="rm-step is-active is-end">
-            <span className="rm-num">✓</span>
-            <div className="rm-main">
-              <h2 className="rm-title">{L.end.title}</h2>
-              {c.closingCriteria && <p className="rm-hint">{c.closingCriteria}</p>}
-              <a className="rm-link" href={href('accueil')}>
-                {L.end.again} →
-              </a>
-            </div>
-          </li>
-        )}
       </ol>
     </article>
   );
