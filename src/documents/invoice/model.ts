@@ -122,21 +122,21 @@ export function buildInvoice(form: InvoiceForm, issuer: IssuerProfile): BuildRes
 
   const c = form.client;
   const hasPerson = c.firstName.trim() !== '' || c.lastName.trim() !== '';
-  if (!c.company.trim() && !hasPerson) errors['client.identity'] = 'Renseigne la société, ou le prénom et le nom du client.';
+  if (!c.company.trim() && !hasPerson) errors['client.identity'] = 'Enter the company, or the customer’s first and last name.';
   if (hasPerson && !c.company.trim()) {
-    requireText(errors, 'client.firstName', c.firstName, 'Renseigne le prénom du client.');
-    requireText(errors, 'client.lastName', c.lastName, 'Renseigne le nom du client.');
+    requireText(errors, 'client.firstName', c.firstName, 'Enter the customer’s first name.');
+    requireText(errors, 'client.lastName', c.lastName, 'Enter the customer’s last name.');
   }
-  if (c.email.trim() && !isValidEmail(c.email)) errors['client.email'] = 'Email du client invalide';
+  if (c.email.trim() && !isValidEmail(c.email)) errors['client.email'] = 'Invalid customer email';
 
   const numErr = validateInvoiceNumber(form.number);
   if (numErr) errors.number = numErr;
-  if (!isValidISODate(form.issueDate)) errors.issueDate = "Renseigne la date d'émission.";
+  if (!isValidISODate(form.issueDate)) errors.issueDate = 'Enter the issue date.';
 
   const inputs: LineInput[] = [];
   form.lines.forEach((l, i) => {
-    const n = form.lines.length > 1 ? ` (ligne ${i + 1})` : '';
-    requireText(errors, `lines.${i}.description`, l.description, `Renseigne la description${n}.`);
+    const n = form.lines.length > 1 ? ` (line ${i + 1})` : '';
+    requireText(errors, `lines.${i}.description`, l.description, `Enter the description${n}.`);
     const q = parseQuantity(l.quantity);
     const p = parseAmount(l.unitPrice);
     const r = parseRate(l.vatRate);
@@ -146,9 +146,9 @@ export function buildInvoice(form: InvoiceForm, issuer: IssuerProfile): BuildRes
     // Les lignes chiffrables alimentent le calcul en direct, même si le reste est incomplet.
     if (q.ok && p.ok && r.ok) inputs.push({ description: l.description.trim(), quantityMilli: q.value, unitPriceCents: p.value, rateBp: r.value });
   });
-  if (form.lines.length === 0) errors.lines = 'Au moins une ligne est requise';
+  if (form.lines.length === 0) errors.lines = 'At least one line is required';
 
-  if (!form.paymentConfirmed) errors.paymentConfirmed = 'Coche la confirmation : le règlement intégral doit avoir été reçu.';
+  if (!form.paymentConfirmed) errors.paymentConfirmed = 'Tick the confirmation: full payment must have been received.';
 
   const draft: InvoiceData = {
     issuer,

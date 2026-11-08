@@ -5,42 +5,42 @@ import type { CaseStatus, Category, CategoryId, Handling, MessageMoment, Support
  * PROVISOIRES : la liste définitive sera fixée par l'analyse de l'historique Freshdesk.
  */
 export const categories: Category[] = [
-  { id: 'acces-connexion', filterLabel: 'Accès', label: 'Accès & connexion', icon: '🔑', hint: 'Pas reçu ses accès, ne peut pas se connecter, nouvel écosystème' },
-  { id: 'paiement-statut', filterLabel: 'Paiement', label: 'Paiement & statut membre', icon: '💳', hint: 'Prélèvement, défaut de paiement, statut à vérifier' },
-  { id: 'formation-whop', filterLabel: 'Formation / Whop', label: 'Formation / Whop', icon: '🎓', hint: 'Accès Whop, invoice 0 USD, visionnage des vidéos' },
-  { id: 'communaute-circle', filterLabel: 'Circle', label: 'Communauté / Circle', icon: '💬', hint: 'Circle, niveau Advanced, espaces de la communauté' },
-  { id: 'factures-documents', filterLabel: 'Documents', label: 'Factures & documents', icon: '🧾', hint: 'Facture, devis, attestation' },
-  { id: 'compte-membre', filterLabel: 'Compte', label: 'Compte membre', icon: '👤', hint: 'Identification, partage d’accès, informations du compte' },
-  { id: 'technique', filterLabel: 'Technique', label: 'Problème technique', icon: '🛠', hint: 'Bug, vidéo qui ne se lit pas, plateforme' },
-  { id: 'autre', filterLabel: 'Autre', label: 'Autres demandes', icon: '✉️', hint: 'Hors sujet, demandes non répertoriées' },
+  { id: 'acces-connexion', filterLabel: 'Access', label: 'Access & login', icon: '🔑', hint: 'Has not received access, cannot log in, new ecosystem' },
+  { id: 'paiement-statut', filterLabel: 'Payment', label: 'Payment & member status', icon: '💳', hint: 'Direct debit, missed payment, status to check' },
+  { id: 'formation-whop', filterLabel: 'Course / Whop', label: 'Course / Whop', icon: '🎓', hint: 'Whop access, 0 USD invoice, watching videos' },
+  { id: 'communaute-circle', filterLabel: 'Circle', label: 'Community / Circle', icon: '💬', hint: 'Circle, Advanced level, community spaces' },
+  { id: 'factures-documents', filterLabel: 'Documents', label: 'Invoices & documents', icon: '🧾', hint: 'Invoice, quote, certificate' },
+  { id: 'compte-membre', filterLabel: 'Account', label: 'Member account', icon: '👤', hint: 'Identification, access sharing, account details' },
+  { id: 'technique', filterLabel: 'Technical', label: 'Technical problem', icon: '🛠', hint: 'Bug, video that does not play, platform' },
+  { id: 'autre', filterLabel: 'Other', label: 'Other requests', icon: '✉️', hint: 'Off-topic, requests not listed' },
 ];
 
 export const categoryLabel = (id: CategoryId): string => categories.find((c) => c.id === id)?.label ?? id;
 export const getCategory = (id?: string) => categories.find((c) => c.id === id);
 
 export const handlingInfo: Record<Handling, { icon: string; label: string; short: string; description: string }> = {
-  sav: { icon: '🟢', label: 'SAV — tu peux traiter directement', short: 'SAV direct', description: 'Tu as tout ce qu’il faut pour répondre et clôturer.' },
-  escalade: { icon: '🟠', label: 'À REMONTER — intervention d’une autre personne nécessaire', short: 'À remonter', description: 'Tu collectes les informations, tu transmets, tu suis, puis tu confirmes au membre.' },
-  'ne-pas-traiter': { icon: '🔴', label: 'NE PAS TRAITER DIRECTEMENT', short: 'Ne pas traiter', description: 'Ne réponds pas sur le fond : transmets immédiatement.' },
+  sav: { icon: '🟢', label: 'SUPPORT — you can handle it directly', short: 'Direct support', description: 'You have everything you need to reply and close.' },
+  escalade: { icon: '🟠', label: 'ESCALATE — someone else needs to step in', short: 'Escalate', description: 'You collect the information, forward it, follow up, then confirm to the member.' },
+  'ne-pas-traiter': { icon: '🔴', label: 'DO NOT HANDLE DIRECTLY', short: 'Do not handle', description: 'Do not reply on the substance: forward it right away.' },
 };
 
 export const validationInfo: Record<ValidationStatus, { label: string; description: string }> = {
-  valide: { label: 'Validé', description: 'Procédure documentée par ECC.' },
-  'a-valider': { label: 'À valider', description: 'À confirmer humainement avant d’être considéré comme officiel.' },
-  demo: { label: 'Démo', description: 'Exemple fictif pour construire l’interface.' },
+  valide: { label: 'Validated', description: 'Procedure documented by ECC.' },
+  'a-valider': { label: 'To validate', description: 'Must be confirmed by a person before it is considered official.' },
+  demo: { label: 'Demo', description: 'Fictional example used to build the interface.' },
 };
 
 export const momentLabel: Record<MessageMoment, string> = {
-  reponse: 'Réponse au membre',
-  pendant: 'Pendant le traitement',
-  resolution: 'Une fois le problème résolu',
+  reponse: 'Reply to the member',
+  pendant: 'While handling',
+  resolution: 'Once the problem is solved',
 };
 
 export const statusInfo: Record<CaseStatus, { icon: string; label: string; description: string }> = {
-  'sav-direct': { icon: '🟢', label: 'SAV DIRECT', description: 'Tu traites toi-même, du début à la fin.' },
-  'a-remonter': { icon: '🟠', label: 'À REMONTER', description: 'Une autre personne doit intervenir : tu transmets, tu suis, tu confirmes au membre.' },
-  'a-valider': { icon: '⚠️', label: 'À VALIDER', description: 'Procédure observée mais pas encore validée officiellement par ECC.' },
-  'ne-pas-traiter': { icon: '🔴', label: 'NE PAS TRAITER', description: 'Ne réponds pas sur le fond : transmets.' },
+  'sav-direct': { icon: '🟢', label: 'DIRECT SUPPORT', description: 'You handle it yourself, from start to finish.' },
+  'a-remonter': { icon: '🟠', label: 'ESCALATE', description: 'Someone else needs to step in: you forward, follow up and confirm to the member.' },
+  'a-valider': { icon: '⚠️', label: 'TO VALIDATE', description: 'Procedure observed but not yet officially validated by ECC.' },
+  'ne-pas-traiter': { icon: '🔴', label: 'DO NOT HANDLE', description: 'Do not reply on the substance: forward it.' },
 };
 
 /** Statut principal d'un cas. */

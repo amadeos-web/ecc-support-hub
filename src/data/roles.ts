@@ -5,14 +5,14 @@ import type { Role, RoleId } from './types';
  * `contact` = nom ou canal réel, à renseigner par ECC (vide = non renseigné ; aucun nom inventé).
  */
 export const roles: Role[] = [
-  { id: 'sav', label: 'SAV (toi)', contact: '' },
-  { id: 'comptabilite', label: 'Comptabilité', contact: '' },
-  { id: 'gestion-acces', label: 'Personne compétente pour les accès', contact: '' },
-  { id: 'sales-tracker', label: 'Vérification des paiements (Sales Tracker)', contact: 'Chrisha ou Amine — d’après le document FACTURATION ECC' },
-  { id: 'technique', label: 'Équipe technique', contact: '' },
-  { id: 'finance', label: 'Équipe finance', contact: '' },
-  { id: 'commercial', label: 'Contact commercial', contact: '' },
-  { id: 'communaute', label: 'Responsables de la communauté', contact: '' },
+  { id: 'sav', label: 'Support (you)', contact: '' },
+  { id: 'comptabilite', label: 'Accounting', contact: '' },
+  { id: 'gestion-acces', label: 'Person in charge of access', contact: '' },
+  { id: 'sales-tracker', label: 'Payment check (Sales Tracker)', contact: 'Chrisha or Amine — per the FACTURATION ECC document' },
+  { id: 'technique', label: 'Tech team', contact: '' },
+  { id: 'finance', label: 'Finance team', contact: '' },
+  { id: 'commercial', label: 'Sales contact', contact: '' },
+  { id: 'communaute', label: 'Community managers', contact: '' },
 ];
 
 export const getRole = (id?: RoleId) => roles.find((r) => r.id === id);

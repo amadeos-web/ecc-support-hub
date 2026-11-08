@@ -11,11 +11,11 @@ describe('facture : champs obligatoires et règles', () => {
     const r = buildInvoice(emptyInvoiceForm(), testIssuer);
     expect(r.isValid).toBe(false);
     expect(r.errors).toMatchObject({
-      'client.identity': 'Renseigne la société, ou le prénom et le nom du client.',
-      number: 'Renseigne le numéro de facture.',
-      'lines.0.unitPrice': 'Montant requis',
-      'lines.0.vatRate': 'Taux de TVA à choisir',
-      paymentConfirmed: 'Coche la confirmation : le règlement intégral doit avoir été reçu.',
+      'client.identity': 'Enter the company, or the customer’s first and last name.',
+      number: 'Enter the invoice number.',
+      'lines.0.unitPrice': 'Amount required',
+      'lines.0.vatRate': 'Choose a VAT rate',
+      paymentConfirmed: 'Tick the confirmation: full payment must have been received.',
     });
     // L'adresse, la ville et le pays du client sont facultatifs : ils ne bloquent pas.
     expect(Object.keys(r.errors)).not.toContain('client.address');
@@ -41,9 +41,9 @@ describe('facture : champs obligatoires et règles', () => {
     expect([defaultIssuerProfile.companyNumber, defaultIssuerProfile.vatNumber, defaultIssuerProfile.email, defaultIssuerProfile.postalCode]).toEqual(['', '', '', '']);
   });
   it('émetteur : raison sociale, adresse ou valeur entre crochets bloquent la génération', () => {
-    expect(buildInvoice(ready(), { ...testIssuer, name: '' }).errors['issuer.name']).toMatch(/manquant/);
-    expect(buildInvoice(ready(), { ...testIssuer, address: '' }).errors['issuer.address']).toMatch(/manquant/);
-    expect(buildInvoice(ready(), { ...testIssuer, name: '[Raison sociale]' }).errors['issuer.name']).toMatch(/personnaliser/);
+    expect(buildInvoice(ready(), { ...testIssuer, name: '' }).errors['issuer.name']).toMatch(/missing/);
+    expect(buildInvoice(ready(), { ...testIssuer, address: '' }).errors['issuer.address']).toMatch(/missing/);
+    expect(buildInvoice(ready(), { ...testIssuer, name: '[Raison sociale]' }).errors['issuer.name']).toMatch(/customised/);
   });
   it('émetteur : les mentions facultatives vides n’empêchent pas la génération', () => {
     expect(buildInvoice(ready(), { ...testIssuer, vatNumber: '', companyNumber: '' }).errors).toEqual({});

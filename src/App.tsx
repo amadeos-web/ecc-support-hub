@@ -4,6 +4,7 @@ import { MemberVarsProvider } from './lib/memberVars';
 import { Sidebar } from './components/Sidebar';
 import { TreatRequestPage } from './pages/TreatRequestPage';
 import { DocumentsPage } from './pages/DocumentsPage';
+import { ResourcesPage } from './pages/ResourcesPage';
 
 export function App() {
   const { page, param } = useRoute();
@@ -18,7 +19,7 @@ export function App() {
         <Sidebar current={page} />
         <div className="main">
           <div className="content">
-            {page === 'documents' ? <DocumentsPage typeId={param} /> : <TreatRequestPage caseId={page === 'traiter' ? param : undefined} />}
+            {page === 'documents' ? <DocumentsPage typeId={param} /> : page === 'ressources' ? <ResourcesPage /> : <TreatRequestPage caseId={page === 'traiter' ? param : undefined} />}
           </div>
         </div>
       </div>

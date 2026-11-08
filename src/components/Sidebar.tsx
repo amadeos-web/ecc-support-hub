@@ -2,8 +2,9 @@ import { href, type PageId } from '../lib/router';
 import eccLogo from '../assets/ecc-logo-mercure.png';
 
 const NAV: { id: PageId; label: string; icon: string }[] = [
-  { id: 'accueil', label: 'Traiter une demande', icon: '➤' },
-  { id: 'documents', label: 'Générer un document', icon: '⎙' },
+  { id: 'accueil', label: 'Handle a request', icon: '➤' },
+  { id: 'documents', label: 'Generate a document', icon: '⎙' },
+  { id: 'ressources', label: 'Resources', icon: '▤' },
 ];
 
 export function Sidebar({ current }: { current: PageId }) {
@@ -27,7 +28,7 @@ export function Sidebar({ current }: { current: PageId }) {
         ))}
       </nav>
       <div className="sidebar-foot">
-        <span className="muted small">Outil interne · local · aucun service connecté</span>
+        <span className="muted small">Internal tool · local · no connected service</span>
       </div>
     </aside>
   );

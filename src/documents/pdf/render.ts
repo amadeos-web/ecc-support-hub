@@ -5,10 +5,9 @@
 import { createElement } from 'react';
 import { pdf } from '@react-pdf/renderer';
 import type { InvoiceData } from '../invoice/model';
-import { InvoicePdf } from './InvoicePdf';
-import { AttestationPdf, QuotePdf } from './OtherPdfs';
-import type { AttestationModel, QuoteModel } from '../models';
-import type { IssuerProfile } from '../core/issuer';
+import { InvoicePdf, type InvoicePdfVariant } from './InvoicePdf';
+import { QuotePdf } from './OtherPdfs';
+import type { SimpleQuote } from '../quote/model';
 import { registerBrowserFonts } from './browserFonts';
 
 export async function renderInvoicePdfBlob(data: InvoiceData): Promise<Blob> {
@@ -17,12 +16,12 @@ export async function renderInvoicePdfBlob(data: InvoiceData): Promise<Blob> {
   return pdf(createElement(InvoicePdf, { data }) as Parameters<typeof pdf>[0]).toBlob();
 }
 
-export async function renderQuotePdfBlob(m: QuoteModel, issuer: IssuerProfile): Promise<Blob> {
+export async function renderQuotePdfBlob(q: SimpleQuote): Promise<Blob> {
   registerBrowserFonts();
-  return pdf(createElement(QuotePdf, { m, issuer }) as Parameters<typeof pdf>[0]).toBlob();
+  return pdf(createElement(QuotePdf, { q }) as Parameters<typeof pdf>[0]).toBlob();
 }
 
-export async function renderAttestationPdfBlob(m: AttestationModel, issuer: IssuerProfile): Promise<Blob> {
+export async function renderAttestationPdfBlob(data: InvoiceData, variant: InvoicePdfVariant): Promise<Blob> {
   registerBrowserFonts();
-  return pdf(createElement(AttestationPdf, { m, issuer }) as Parameters<typeof pdf>[0]).toBlob();
+  return pdf(createElement(InvoicePdf, { data, variant }) as Parameters<typeof pdf>[0]).toBlob();
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { caseGuidance, kycRequiredIds, roadmapFor, supportCases } from '.';
+import { caseGuidance, ID_EMAIL, ID_FIRST_NAME, ID_LAST_NAME, ID_SIGNUP_EMAIL, kycRequiredIds, roadmapFor, supportCases } from '.';
 
 describe('roadmaps des cas : aucune information du process ne disparaît', () => {
   it('chaque étape du process est placée dans la roadmap, une seule fois, dans l’ordre', () => {
@@ -23,7 +23,7 @@ describe('roadmaps des cas : aucune information du process ne disparaît', () =>
       if (c.checks.length) expect(kinds.has('checks'), `${c.id} checks`).toBe(true);
       if (c.doNot.length) expect(kinds.has('doNot'), `${c.id} doNot`).toBe(true);
       if (c.escalation) expect(kinds.has('escalation'), `${c.id} escalation`).toBe(true);
-      if (c.infoToCollect.some((i) => !['Prénom', 'Nom', 'Email', 'Email utilisé lors de l’inscription'].includes(i))) expect(kinds.has('ask'), `${c.id} ask`).toBe(true);
+      if (c.infoToCollect.some((i) => ![ID_FIRST_NAME, ID_LAST_NAME, ID_EMAIL, ID_SIGNUP_EMAIL].includes(i))) expect(kinds.has('ask'), `${c.id} ask`).toBe(true);
     }
   });
   it('titres d’étapes en verbes d’action, sans doublon', () => {
@@ -41,7 +41,7 @@ describe('roadmaps des cas : aucune information du process ne disparaît', () =>
     for (const id of kycRequiredIds) expect(supportCases.some((c) => c.id === id), id).toBe(true);
   });
   it('KYC : pas ajouté aux cas sans accès à donner (vidéos, documents, paiements…)', () => {
-    for (const id of ['cas-lecture-videos', 'cas-video-telephone', 'cas-facture', 'cas-devis', 'cas-attestation', 'cas-date-prelevement', 'cas-remboursement', 'cas-plusieurs-appareils', 'cas-autre-bug', 'cas-utilisation-circle']) {
+    for (const id of ['cas-video-telephone', 'cas-facture', 'cas-devis', 'cas-attestation', 'cas-date-prelevement', 'cas-remboursement', 'cas-plusieurs-appareils', 'cas-autre-bug']) {
       expect(kycRequiredIds.has(id), id).toBe(false);
     }
   });

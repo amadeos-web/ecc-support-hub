@@ -32,17 +32,21 @@ describe('mentions à compléter du document', () => {
 });
 
 describe('bibliothèque Template SAV ECC', () => {
-  it('14 templates, tous personnalisés par le prénom', () => {
-    expect(templates).toHaveLength(14);
+  it('26 templates, tous personnalisés par le prénom', () => {
+    expect(templates).toHaveLength(26);
     for (const t of templates) {
       expect(t.source).toBe('template-sav-ecc');
       expect(t.message.split('\n')[0]).toMatch(/^Bonjour \{\{prenom\}\}( 👋|,)$/);
       expect(renderTemplate(t.message, { prenom: 'Sarah' }).startsWith('Bonjour Sarah')).toBe(true);
     }
   });
-  it('seul le template « invoice 0,00 USD » exige une information supplémentaire', () => {
+  it('seuls les templates avec lien d’invitation (invoice 0,00 USD) exigent une information supplémentaire', () => {
     const withRequired = templates.filter((t) => t.requiredVariables.length > 0);
-    expect(withRequired.map((t) => [t.id, t.requiredVariables])).toEqual([['tpl-sav-relance-invoice-0-usd', ['lien_invoice']]]);
+    expect(withRequired.map((t) => [t.id, t.requiredVariables])).toEqual([
+      ['tpl-sav-relance-invoice-0-usd', ['lien_invoice']],
+      ['tpl-sav-reinvitation-whop', ['lien_invoice']],
+      ['tpl-sav-acces-retire-raison', ['raison_retrait']],
+    ]);
   });
   it('le message ne diffère de la source que par la salutation et les mentions à compléter', () => {
     for (const t of templates) {
@@ -51,7 +55,8 @@ describe('bibliothèque Template SAV ECC', () => {
         .split('\n')
         .slice(1)
         .join('\n')
-        .replace('{{lien_invoice}}', "LIEN DE L'INVOICE");
+        .replace('{{lien_invoice}}', "LIEN DE L'INVOICE")
+        .replace('{{raison_retrait}}', 'RAISON DU RETRAIT');
       expect(restore).toBe(t.sourceMessage.split('\n').slice(1).join('\n'));
     }
   });

@@ -61,14 +61,14 @@ export function PdfPreview({ docKey, make, large = false, onEscape }: { docKey: 
   return (
     <div ref={frameRef} className={`pdf-frame ${large ? 'is-large' : ''}`}>
       {doc && width > 0 && (
-        <div className="pdf-pages" aria-label="Aperçu du document">
+        <div className="pdf-pages" aria-label="Document preview">
           {Array.from({ length: doc.numPages }, (_, i) => (
             <PdfPageCanvas key={`${doc.fingerprints[0]}-${i}`} doc={doc} page={i + 1} width={width} />
           ))}
         </div>
       )}
-      {state === 'loading' && !doc && <div className="pdf-status">Préparation de l’aperçu…</div>}
-      {state === 'error' && <div className="pdf-status">L’aperçu n’a pas pu être généré. Réessaie ; si le problème persiste, recharge la page.</div>}
+      {state === 'loading' && !doc && <div className="pdf-status">Preparing the preview…</div>}
+      {state === 'error' && <div className="pdf-status">The preview could not be generated. Try again; if the problem persists, reload the page.</div>}
     </div>
   );
 }

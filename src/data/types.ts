@@ -132,7 +132,7 @@ export interface SupportCase {
 }
 
 /** Variables utilisables dans les messages : {{prenom}}, {{nom}}… */
-export type TemplateVariable = 'prenom' | 'nom' | 'email' | 'formation' | 'montant' | 'date' | 'numero_facture' | 'lien_invoice';
+export type TemplateVariable = 'prenom' | 'nom' | 'email' | 'formation' | 'montant' | 'date' | 'numero_facture' | 'lien_invoice' | 'raison_retrait';
 
 /** Message au membre. */
 export interface MessageTemplate {
@@ -144,6 +144,8 @@ export interface MessageTemplate {
   sourceMessage: string;
   /** Message prêt à personnaliser, avec variables {{...}}. */
   message: string;
+  /** Traduction anglaise pour information de l'agent (jamais copiée ni envoyée), mêmes variables. */
+  english?: string;
   variables: TemplateVariable[];
   requiredVariables: TemplateVariable[];
   /** Cas SAV auxquels ce message est rattaché. */

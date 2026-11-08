@@ -7,6 +7,9 @@ réponses personnalisées, générer des documents (aperçu) et connaître les r
 > les vrais process ECC et seront remplacées par les templates Excel et les historiques
 > Freshdesk / Whop.
 
+> 🌐 **Langues** : l'interface est en anglais (agent SAV anglophone) ; les messages aux membres,
+> le message interne à la comptabilité et les PDF générés restent en français.
+
 ## Démarrer
 
 ```bash
@@ -20,7 +23,7 @@ Autres commandes : `npm run typecheck` · `npm test` · `npm run build`
 
 | Je veux modifier…                              | Fichier                           |
 |------------------------------------------------|-----------------------------------|
-| Les cas SAV (27 fiches issues de Freshdesk)    | `src/data/supportCases.ts`        |
+| Les cas SAV (25 fiches issues de Freshdesk)    | `src/data/supportCases.ts`        |
 | Fréquences / tickets sources par cas           | `src/data/freshdeskObservations.ts` |
 | Les messages au membre (Template SAV ECC)      | `src/data/templates.ts`           |
 | Les messages internes (ex. comptabilité)       | `src/data/internalMessages.ts`    |

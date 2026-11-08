@@ -11,6 +11,7 @@ import { OPTIONAL_VARIABLES, templateVariables } from './templateEngine';
 /** Mentions à compléter repérées dans le document source. */
 export const SOURCE_PLACEHOLDERS: { pattern: RegExp; variable: TemplateVariable }[] = [
   { pattern: /LIEN DE L['’]INVOICE/g, variable: 'lien_invoice' },
+  { pattern: /RAISON DU RETRAIT/g, variable: 'raison_retrait' },
 ];
 
 const GREETING_RE = /^(Salut|Bonjour)[ \t]*(👋)?[ \t]*(,)?[ \t]*$/u;
@@ -21,6 +22,14 @@ export function personalizeGreeting(message: string): string {
   if (!m) return message;
   const greeting = m[2] ? 'Bonjour {{prenom}} 👋' : m[3] ? 'Bonjour {{prenom}},' : 'Bonjour {{prenom}}';
   return [greeting, ...rest].join('\n');
+}
+
+/** Traduction anglaise (information de l'agent) : même personnalisation que le message français. */
+export function prepareEnglish(english: string): string {
+  const [first, ...rest] = english.trim().split('\n');
+  const m = first.match(/^Hello[ \t]*(👋)?[ \t]*(,)?[ \t]*$/u);
+  const greeting = !m ? first : m[1] ? 'Hello {{prenom}} 👋' : m[2] ? 'Hello {{prenom}},' : 'Hello {{prenom}}';
+  return [greeting, ...rest].join('\n').replace(/INVOICE LINK/g, '{{lien_invoice}}').replace(/REASON FOR REMOVAL/g, '{{raison_retrait}}');
 }
 
 export function prepareSavTemplate(sourceMessage: string) {

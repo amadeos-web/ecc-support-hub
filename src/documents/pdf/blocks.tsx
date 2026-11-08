@@ -15,10 +15,17 @@ export function resolveLogo(profileLogo?: string): string | null {
   return invoiceBrand.logo.src || profileLogo || null;
 }
 
-export function EccHeader({ title, logo }: { title: string; logo: string | null }) {
+export function EccHeader({ title, logo, subtitle, titleSize }: { title: string; logo: string | null; subtitle?: string; titleSize?: number }) {
   return (
     <View style={s.header}>
-      <Text style={s.title}>{title}</Text>
+      {subtitle ? (
+        <View>
+          <Text style={[s.title, ...(titleSize ? [{ fontSize: titleSize }] : [])]}>{title}</Text>
+          <Text style={{ fontFamily: s.title.fontFamily, fontSize: 9.5, letterSpacing: 2.2, marginTop: 6 }}>{subtitle}</Text>
+        </View>
+      ) : (
+        <Text style={s.title}>{title}</Text>
+      )}
       {logo ? (
         <Image src={logo} style={s.logo} />
       ) : invoiceBrand.logo.showPlaceholder ? (

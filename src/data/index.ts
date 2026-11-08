@@ -16,8 +16,9 @@ export { roadmapFor } from './caseRoadmaps';
 export type { RoadmapBlock, RoadmapStepDef } from './caseRoadmaps';
 export { getRole } from './roles';
 export { getInternalMessage } from './internalMessages';
-export { issuer, currencies, vatRates, attestationStatuses } from './documentTypes';
+export { issuer, currencies, vatRates, attestationStatuses, attestationStatusLabels } from './documentTypes';
 export type { Currency } from './documentTypes';
+export { ID_EMAIL, ID_FIRST_NAME, ID_LAST_NAME, ID_SIGNUP_EMAIL } from './supportCases';
 export { supportCases, templates, internalMessages, documentTypes, roles };
 
 export const getCase = (id?: string) => supportCases.find((c) => c.id === id);

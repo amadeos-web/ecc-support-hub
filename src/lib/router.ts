@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 
 /** Routage minimal par hash : #/page/param — aucune dépendance. */
-export type PageId = 'accueil' | 'traiter' | 'documents';
+export type PageId = 'accueil' | 'traiter' | 'documents' | 'ressources';
 
 /** Les anciennes adresses (process, templates, escalades) renvoient vers « Traiter une demande ». */
-const PAGES: PageId[] = ['accueil', 'traiter', 'documents'];
+const PAGES: PageId[] = ['accueil', 'traiter', 'documents', 'ressources'];
 
 export interface Route {
   page: PageId;

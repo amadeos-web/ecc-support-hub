@@ -1,42 +1,46 @@
 /**
  * Libellés du parcours guidé (titres formulés comme des actions). Les règles métier restent dans
  * supportCases.ts / internalMessages.ts / templates.ts ; ici uniquement les intitulés des étapes.
+ * Interface agent : en anglais.
  */
 export const roadmapLabels = {
-  identify: { title: 'Identifier le membre', cta: 'Continuer' },
-  status: {
-    title: 'Vérifier le statut du membre',
-    hint: 'Vérification interne : le membre n’en est pas informé.',
-    copy: 'Copier le message',
-    cta: 'J’ai reçu le retour',
-  },
-  result: {
-    title: 'Indiquer le retour de la comptabilité',
-    ok: 'En règle',
-    ko: 'Pas en règle',
-    change: 'Changer la réponse',
+  identify: {
+    title: 'Identify the member',
+    cta: 'Continue',
+    hint: 'Find the member in Didit with their email address.',
+    kycHint: 'Find the member in Didit with their email address: their name and KYC status are there.',
+    label: 'Checklist',
+    items: [
+      'Get the member’s email address from their message.',
+      'Search this email in Didit.',
+      'Note the member’s first and last name shown in Didit.',
+    ],
   },
   kyc: {
-    title: 'Vérifier le KYC du membre',
-    hint: 'Confirme que le membre est bien enregistré et validé dans le KYC avant de poursuivre.',
-    ok: 'KYC validé',
-    ko: 'KYC non validé',
-    change: 'Changer la réponse',
-    koTitle: 'Attendre la régularisation du KYC',
-    koHint: 'Ne procède pas à l’accès, à la réinvitation ni au rétablissement tant que le KYC n’est pas validé.',
+    label: 'KYC status in Didit',
+    ok: 'KYC validated',
+    ko: 'KYC not validated / no KYC',
+    change: 'Change the answer',
+    koTitle: 'Wait for the KYC to be completed',
+    koHint: 'Do not grant access, re-invite or restore anything until the KYC is validated.',
   },
-  notInOrder: { title: 'Traiter la situation d’un membre pas en règle', hint: 'Ne poursuis pas le traitement normal.' },
   blocks: {
-    ask: 'À demander au membre',
-    check: 'À contrôler',
-    branches: 'Selon la situation',
-    showReply: 'Afficher la réponse',
-    to: 'À qui',
-    when: 'Quand',
-    what: 'À transmettre',
-    doNot: 'À ne pas faire',
-    prenom: 'Prénom du membre',
+    ask: 'Ask the member',
+    check: 'Check',
+    branches: 'Depending on the situation',
+    showReply: 'Show the reply',
+    to: 'To',
+    when: 'When',
+    what: 'Send',
+    doNot: 'Do not',
+    prenom: 'Member’s first name',
   },
-  cta: { next: 'Continuer', last: 'Terminer' },
-  end: { title: 'Terminé', again: 'Traiter une autre demande' },
+  slack: {
+    channel: '#ecc-acces-payements',
+    channelUrl: 'https://sendexfulfillment.enterprise.slack.com/archives/C095ZG422MS',
+    whatsapp: 'WhatsApp number',
+    copy: 'Copy the message',
+    needWhatsapp: 'Fill in first: WhatsApp number',
+    needEmail: 'Fill in first: Email',
+  },
 } as const;

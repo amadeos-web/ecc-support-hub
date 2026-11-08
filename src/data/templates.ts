@@ -1,5 +1,6 @@
 import type { CategoryId, MessageTemplate } from './types';
-import { prepareSavTemplate } from '../lib/savTemplate';
+import { prepareEnglish, prepareSavTemplate } from '../lib/savTemplate';
+import { templatesEnglish } from './templatesEnglish';
 
 /**
  * BIBLIOTHÈQUE DES MESSAGES SAV — source : document « TEMPLATE SAV ECC » (PDF, 5 pages, 14 cas).
@@ -9,6 +10,9 @@ import { prepareSavTemplate } from '../lib/savTemplate';
  * sont dérivés automatiquement par `prepareSavTemplate` (voir src/lib/savTemplate.ts).
  * Pour ajouter un cas (ex. issu de l'historique Freshdesk) : ajouter une entrée ici et le cas
  * correspondant dans supportCases.ts.
+ *
+ * LANGUE : `title` est lu par l'agent (anglais). `sourceMessage` est envoyé au membre : il reste
+ * en français, mot pour mot.
  */
 interface SavEntry {
   id: string;
@@ -20,7 +24,7 @@ interface SavEntry {
 const SAV_ECC: SavEntry[] = [
   {
     id: 'tpl-sav-nouvel-ecosysteme',
-    title: 'Le client ne connait pas le nouvel écosystème',
+    title: 'The customer does not know about the new ecosystem',
     category: 'acces-connexion',
     sourceMessage: `Salut 👋
 
@@ -49,33 +53,8 @@ On a hâte de vous retrouver de l'autre côté 🔥
 L'équipe Ecommerce Capital Club`,
   },
   {
-    id: 'tpl-sav-pas-acces-v2-whop',
-    title: "Le client n'a pas accès à la V2 sur Whop",
-    category: 'formation-whop',
-    sourceMessage: `Salut 👋
-
-On vient de t’envoyer, à l’instant, une invoice de 0,00 USD par email afin de finaliser ton accès à ton espace Whop.
-
-Aucun paiement n’est nécessaire — cette étape permet simplement de valider ton intégration et de t’attribuer ta place dans le nouvel espace membre.
-
-👉 Une seule étape à faire :
-Rends-toi dans tes emails et accepte l’invoice de 0,00 USD reçue.
-
-Une fois validée, ton accès sera activé et tu pourras profiter de l’ensemble de l’écosystème mis en place pour toi.
-
-Si tu ne vois pas l’email immédiatement, pense à vérifier tes spams ou courriers indésirables.
-
-Si tu as la moindre question pendant le processus, n’hésite pas à revenir vers nous.
-
-On a hâte de te retrouver de l’autre côté 🔥
-
-À très vite,
-
-L’équipe Ecommerce Capital Club`,
-  },
-  {
     id: 'tpl-sav-client-non-identifie',
-    title: "Le client n'est pas identifié",
+    title: 'The customer is not identified',
     category: 'compte-membre',
     sourceMessage: `Salut 👋
 
@@ -107,7 +86,7 @@ L’équipe Ecommerce Capital Club`,
   },
   {
     id: 'tpl-sav-relance-invoice-0-usd',
-    title: "Le client relance pour ses accès à Whop mais a déjà reçu l'invoice à 0,00 USD",
+    title: 'The customer chases their Whop access but has already received the 0.00 USD invoice',
     category: 'formation-whop',
     sourceMessage: `Salut 👋
 
@@ -132,7 +111,7 @@ L’équipe Ecommerce Capital Club`,
   },
   {
     id: 'tpl-sav-date-prelevement',
-    title: 'Le client demande de modifier la date de prélèvement',
+    title: 'The customer asks to change the direct debit date',
     category: 'paiement-statut',
     sourceMessage: `Salut 👋
 
@@ -150,7 +129,7 @@ L’équipe Ecommerce Capital Club`,
   },
   {
     id: 'tpl-sav-niveau-advanced',
-    title: 'Le client demande ses accès au niveau avancé',
+    title: 'The customer asks for access to the Advanced level',
     category: 'communaute-circle',
     sourceMessage: `Salut 👋
 
@@ -170,7 +149,7 @@ L’équipe Ecommerce Capital Club`,
   },
   {
     id: 'tpl-sav-email-present-whop',
-    title: 'Le client déclare ne pas avoir accès à la V2 mais son email est bien dans la base de donné Whop',
+    title: 'The customer says they have no V2 access but their email is in the Whop database',
     category: 'formation-whop',
     sourceMessage: `Salut 👋
 
@@ -192,7 +171,7 @@ L’équipe Ecommerce Capital Club`,
   },
   {
     id: 'tpl-sav-acces-retires-defaut-paiement',
-    title: "Le client s'est vu retiré ses accès à la V2 pour cause de défaut de paiement",
+    title: 'The customer’s V2 access was removed because of a missed payment',
     category: 'paiement-statut',
     sourceMessage: `Salut 👋
 
@@ -210,7 +189,7 @@ L’équipe Ecommerce Capital Club`,
   },
   {
     id: 'tpl-sav-email-present-whop-circle',
-    title: "Le client déclare ne pas avoir accès à Whop et Circle mais son adresse email indique qu'il est présent sur les deux",
+    title: 'The customer says they have no Whop or Circle access but their email shows they are on both',
     category: 'acces-connexion',
     sourceMessage: `Salut 👋
 
@@ -232,7 +211,7 @@ L’équipe Ecommerce Capital Club`,
   },
   {
     id: 'tpl-sav-plusieurs-appareils',
-    title: 'Le client se questionne sur le visionnage de la formation sur plusieurs devices',
+    title: 'The customer asks about watching the course on several devices',
     category: 'formation-whop',
     sourceMessage: `Salut 👋
 
@@ -254,7 +233,7 @@ L’équipe Ecommerce Capital Club`,
   },
   {
     id: 'tpl-sav-visionnage-telephone',
-    title: 'Le client déclare ne pas pouvoir visionner la formation sur son téléphone',
+    title: 'The customer says they cannot watch the course on their phone',
     category: 'formation-whop',
     sourceMessage: `Salut 👋
 
@@ -278,7 +257,7 @@ L’équipe Ecommerce Capital Club`,
   },
   {
     id: 'tpl-sav-double-acces-associe',
-    title: 'Le client veut avoir un double accès avec son associé',
+    title: 'The customer wants a second access for their business partner',
     category: 'compte-membre',
     sourceMessage: `Bonjour,
 
@@ -296,7 +275,7 @@ L’équipe Ecommerce Capital Club`,
   },
   {
     id: 'tpl-sav-hors-sujet',
-    title: 'Le client est hors sujet',
+    title: 'The customer is off-topic',
     category: 'autre',
     sourceMessage: `Bonjour 👋
 
@@ -313,19 +292,287 @@ Merci de ta compréhension.
 L'équipe Ecommerce Capital Club`,
   },
   {
-    id: 'tpl-sav-probleme-technique',
-    title: 'Le client a un problème technique',
-    category: 'technique',
+    id: 'tpl-sav-reinvitation-whop',
+    title: 'The customer has been re-invited to Whop (0.00 USD invoice with link)',
+    category: 'formation-whop',
+    sourceMessage: `Salut 👋
+
+On vient de t’envoyer, à l’instant, une invoice de 0,00 USD par email afin de finaliser ton accès à ton espace Whop.
+
+Aucun paiement n’est nécessaire — cette étape permet simplement de valider ton intégration et de t’attribuer ta place dans le nouvel espace membre.
+
+👉 Une seule étape à faire :
+Rends-toi dans tes emails et accepte l’invoice de 0,00 USD reçue.
+
+🔗 Tu peux aussi l’accepter directement via ce lien :
+LIEN DE L'INVOICE
+
+Une fois validée, ton accès sera activé et tu pourras profiter de l’ensemble de l’écosystème mis en place pour toi.
+
+Si tu ne vois pas l’email immédiatement, pense à vérifier tes spams ou courriers indésirables.
+
+Si tu as la moindre question pendant le processus, n’hésite pas à revenir vers nous.
+
+On a hâte de te retrouver de l’autre côté 🔥
+
+À très vite,
+
+L’équipe Ecommerce Capital Club`,
+  },
+  {
+    id: 'tpl-sav-email-present-whop-guide',
+    title: 'The customer’s Whop access is active (with the Whop guide)',
+    category: 'formation-whop',
+    sourceMessage: `Salut 👋
+
+Après vérification de notre côté avec l’adresse email que tu nous as communiquée, je peux te confirmer que ton accès à Whop est bien actif sur cette adresse.
+
+Tu disposes donc déjà des accès à la plateforme avec cet email.
+
+Je t’invite à bien vérifier que tu es connecté sur le bon compte Whop, avec la bonne adresse email utilisée lors de ton inscription, car le problème vient généralement de là.
+
+Pense également à te déconnecter puis te reconnecter, ou à tester depuis un autre navigateur/appareil si nécessaire.
+
+Tes accès étant bien actifs de notre côté, tu devrais pouvoir retrouver la formation normalement en te reconnectant sur le bon compte.
+
+📘 Tu trouveras également ci-joint le guide Whop pour t’aider à bien t’y retrouver sur la plateforme.
+
+Tiens-moi au courant si le problème persiste 🔥
+
+À très vite,
+
+L’équipe Ecommerce Capital Club`,
+  },
+  {
+    id: 'tpl-sav-remboursement',
+    title: 'The customer asks for a refund (acknowledgement)',
+    category: 'paiement-statut',
     sourceMessage: `Bonjour 👋
 
 Merci pour ton message.
 
-Le problème de lecture des vidéos de la formation nous a bien été remonté et nos équipes techniques sont actuellement mobilisées pour le résoudre.
-Nous mettons tout en œuvre afin de rétablir la situation dans les plus brefs délais.
+Nous avons bien reçu ta demande de remboursement.
 
-👉 Aucune action n'est requise de ton côté pour le moment. Nous t'invitons simplement à réessayer un peu plus tard.
+Elle a été transmise à l’équipe concernée, qui va l’étudier avec attention. Nous reviendrons vers toi dès que possible.
 
-Merci pour ta patience et ta compréhension.
+Merci pour ta patience et ta compréhension 🙏
+
+À très vite,
+
+L’équipe Ecommerce Capital Club`,
+  },
+  {
+    id: 'tpl-sav-virement-recu',
+    title: 'The customer’s bank transfer has been received',
+    category: 'paiement-statut',
+    sourceMessage: `Bonjour 👋
+
+Merci pour ton message.
+
+Nous te confirmons que ton virement a bien été reçu et que ta situation est en ordre de notre côté.
+
+Si tu as la moindre question, n’hésite pas à revenir vers nous.
+
+À très vite,
+
+L’équipe Ecommerce Capital Club`,
+  },
+  {
+    id: 'tpl-sav-probleme-paiement',
+    title: 'The customer’s payment situation is not in order',
+    category: 'paiement-statut',
+    sourceMessage: `Bonjour 👋
+
+Merci pour ton message.
+
+Après vérification auprès de notre équipe, ta situation de paiement n’est pas en ordre pour le moment.
+
+La gestion des paiements étant entièrement automatisée, nous ne sommes pas en mesure d’accorder de délai supplémentaire. En cas de défaut de paiement, les accès à la plateforme sont automatiquement suspendus.
+
+👉 Dès que le paiement est régularisé, tes accès sont réactivés automatiquement.
+
+Merci pour ta compréhension 🙏
+
+À très vite,
+
+L’équipe Ecommerce Capital Club`,
+  },
+  {
+    id: 'tpl-sav-paiement-en-ordre',
+    title: 'The customer’s payment situation is in order',
+    category: 'paiement-statut',
+    sourceMessage: `Bonjour 👋
+
+Merci pour ton message.
+
+Après vérification auprès de notre équipe, nous te confirmons que ta situation de paiement est bien en ordre.
+
+Tu n’as rien à faire de ton côté : tes accès restent actifs normalement.
+
+Si tu as la moindre question, n’hésite pas à revenir vers nous.
+
+À très vite,
+
+L’équipe Ecommerce Capital Club`,
+  },
+  {
+    id: 'tpl-sav-paiement-recu-reactivation',
+    title: 'The customer’s payment has been received (access active again)',
+    category: 'paiement-statut',
+    sourceMessage: `Bonjour 👋
+
+Merci pour ton message.
+
+Après vérification auprès de notre équipe, nous te confirmons que ton paiement a bien été reçu.
+
+Ton statut a été mis à jour et tes accès à la plateforme sont de nouveau actifs.
+
+Si tu as la moindre question, n’hésite pas à revenir vers nous.
+
+À très vite,
+
+L’équipe Ecommerce Capital Club`,
+  },
+  {
+    id: 'tpl-sav-acces-retire-raison',
+    title: 'The customer’s access was removed (reason given by the team)',
+    category: 'acces-connexion',
+    sourceMessage: `Bonjour 👋
+
+Merci pour ton message.
+
+Après vérification auprès de notre équipe, tes accès ont été retirés pour la raison suivante :
+RAISON DU RETRAIT
+
+👉 Dès que la situation sera régularisée, nous pourrons procéder à la réouverture de tes accès à la plateforme.
+
+Si tu as la moindre question, n’hésite pas à revenir vers nous.
+
+Merci pour ta compréhension 🙏
+
+À très vite,
+
+L’équipe Ecommerce Capital Club`,
+  },
+  {
+    id: 'tpl-sav-kyc-bloque',
+    title: 'The customer is stuck during identity verification (KYC)',
+    category: 'acces-connexion',
+    sourceMessage: `Bonjour 👋
+
+Merci pour ton message.
+
+Nous avons bien pris en compte ton souci concernant la vérification d’identité (KYC), et il a été transmis à l’équipe concernée pour vérification.
+
+👉 Pour nous aider à débloquer la situation plus rapidement, tu peux nous envoyer une capture d’écran de l’étape où tu es bloqué ou du message d’erreur affiché.
+
+Nous revenons vers toi dès que possible.
+
+Merci pour ta patience 🙏
+
+À très vite,
+
+L’équipe Ecommerce Capital Club`,
+  },
+  {
+    id: 'tpl-sav-infos-facture',
+    title: 'The customer asks for an invoice (details needed)',
+    category: 'factures-documents',
+    sourceMessage: `Bonjour 👋
+
+Merci pour ton message.
+
+Afin de pouvoir établir ta facture, merci de nous transmettre les informations suivantes :
+
+- Nom et prénom (ou nom de la société, si la facture doit être établie à son nom)
+- Adresse complète (rue, code postal, ville, pays)
+- Si la facture est au nom d’une société : numéro d’entreprise (SIRET / BCE) et numéro de TVA
+
+👉 Dès réception de ces informations, nous te ferons parvenir ta facture.
+
+À très vite,
+
+L’équipe Ecommerce Capital Club`,
+  },
+  {
+    id: 'tpl-sav-infos-devis',
+    title: 'The customer asks for a quote (details needed)',
+    category: 'factures-documents',
+    sourceMessage: `Bonjour 👋
+
+Merci pour ton message.
+
+Afin de pouvoir établir ton devis, merci de nous transmettre les informations suivantes :
+
+- Nom et prénom
+- Date de naissance
+- Adresse complète (rue, code postal, ville, pays)
+- Adresse email
+- Nom et adresse complète de l’organisme financeur
+
+👉 Dès réception de ces informations, nous te ferons parvenir ton devis.
+
+À très vite,
+
+L’équipe Ecommerce Capital Club`,
+  },
+  {
+    id: 'tpl-sav-infos-attestation',
+    title: 'The customer asks for a training certificate (details needed)',
+    category: 'factures-documents',
+    sourceMessage: `Bonjour 👋
+
+Merci pour ton message.
+
+Afin de pouvoir établir ton attestation de suivi de formation, merci de nous confirmer les informations suivantes :
+
+- Nom et prénom
+- Adresse email utilisée lors de ton inscription
+
+👉 Dès réception de ces informations, nous te ferons parvenir ton attestation.
+
+À très vite,
+
+L’équipe Ecommerce Capital Club`,
+  },
+  {
+    id: 'tpl-sav-autre-bug',
+    title: 'The customer reports a technical problem on our platforms',
+    category: 'technique',
+    sourceMessage: `Bonjour 👋
+
+Merci pour ton message et pour nous avoir signalé ce problème.
+
+Nous sommes désolés pour la gêne occasionnée et allons faire le nécessaire pour identifier l'origine du dysfonctionnement.
+
+Afin de permettre à nos équipes techniques d'analyser la situation et de trouver une solution rapidement, pourrais-tu nous transmettre les éléments suivants :
+
+* L'outil ou la page concernée par le problème.
+* Une courte description du dysfonctionnement rencontré, ainsi que l'éventuel message d'erreur affiché.
+* Idéalement une capture d'écran ou un enregistrement vidéo permettant de visualiser clairement le problème.
+
+
+Nous pourrons alors transmettre ton signalement à nos équipes techniques pour investigation et résolution.
+
+Merci pour ta patience et ta collaboration ! 🙏
+
+L'équipe Ecommerce Capital Club`,
+  },
+  {
+    id: 'tpl-sav-prospect',
+    title: 'A prospect asks for information about the offer',
+    category: 'autre',
+    sourceMessage: `Bonjour 👋
+
+Merci pour ton intérêt envers l'Ecommerce Capital Club !
+
+Nous serions ravis de t'en dire davantage sur notre formation, notre accompagnement et les différents services que nous proposons pour t'aider à développer ton activité e-commerce.
+
+Afin de pouvoir te présenter nos offres et répondre à toutes tes questions, nous t'invitons à nous communiquer ton numéro WhatsApp (avec l'indicatif du pays).
+
+👉 Un membre de notre équipe prendra directement contact avec toi afin d'échanger sur ton projet, comprendre tes besoins et t'orienter vers la solution la plus adaptée.
+
+Merci pour ta confiance et à très vite ! 🙏
 
 L'équipe Ecommerce Capital Club`,
   },
@@ -334,19 +581,31 @@ L'équipe Ecommerce Capital Club`,
 /** Cas SAV auxquels chaque message validé est rattaché (un message peut servir plusieurs cas). */
 const CASE_LINKS: Record<string, string[]> = {
   'tpl-sav-nouvel-ecosysteme': ['cas-absent-base-kyc'],
-  'tpl-sav-pas-acces-v2-whop': ['cas-acces-v2-non-recu', 'cas-desabonnement-accidentel', 'cas-invitation-whop-0usd'],
-  'tpl-sav-client-non-identifie': ['cas-membre-non-identifie', 'cas-acces-v2-non-recu', 'cas-desabonnement-accidentel', 'cas-acces-retire-sans-explication'],
+  'tpl-sav-client-non-identifie': ['cas-membre-non-identifie'],
   'tpl-sav-relance-invoice-0-usd': ['cas-invitation-whop-0usd'],
   'tpl-sav-date-prelevement': ['cas-date-prelevement'],
   'tpl-sav-niveau-advanced': ['cas-niveau-advanced'],
-  'tpl-sav-email-present-whop': ['cas-acces-actif-mauvais-compte', 'cas-whop-payant-v1'],
+  'tpl-sav-email-present-whop': ['cas-acces-actif-mauvais-compte'],
   'tpl-sav-acces-retires-defaut-paiement': ['cas-defaut-paiement'],
-  'tpl-sav-email-present-whop-circle': ['cas-acces-actif-mauvais-compte'],
+  'tpl-sav-email-present-whop-circle': ['cas-acces-actif-mauvais-compte', 'cas-acces-v2-non-recu'],
   'tpl-sav-plusieurs-appareils': ['cas-plusieurs-appareils', 'cas-acces-perdu-appareil'],
   'tpl-sav-visionnage-telephone': ['cas-video-telephone'],
   'tpl-sav-double-acces-associe': ['cas-double-acces'],
   'tpl-sav-hors-sujet': ['cas-hors-sujet'],
-  'tpl-sav-probleme-technique': ['cas-lecture-videos'],
+  'tpl-sav-prospect': ['cas-prospect'],
+  'tpl-sav-autre-bug': ['cas-autre-bug'],
+  'tpl-sav-infos-attestation': ['cas-attestation'],
+  'tpl-sav-infos-devis': ['cas-devis'],
+  'tpl-sav-infos-facture': ['cas-facture'],
+  'tpl-sav-kyc-bloque': ['cas-verification-kyc'],
+  'tpl-sav-acces-retire-raison': ['cas-acces-retire-sans-explication'],
+  'tpl-sav-paiement-recu-reactivation': ['cas-defaut-paiement'],
+  'tpl-sav-probleme-paiement': ['cas-probleme-echeancier'],
+  'tpl-sav-paiement-en-ordre': ['cas-probleme-echeancier'],
+  'tpl-sav-virement-recu': ['cas-preuve-virement'],
+  'tpl-sav-remboursement': ['cas-remboursement'],
+  'tpl-sav-reinvitation-whop': ['cas-desabonnement-accidentel', 'cas-acces-retire-sans-explication', 'cas-acces-v2-non-recu'],
+  'tpl-sav-email-present-whop-guide': ['cas-whop-payant-v1'],
 };
 
 export const templates: MessageTemplate[] = SAV_ECC.map((e) => ({
@@ -355,6 +614,7 @@ export const templates: MessageTemplate[] = SAV_ECC.map((e) => ({
   category: e.category,
   sourceMessage: e.sourceMessage,
   ...prepareSavTemplate(e.sourceMessage),
+  english: templatesEnglish[e.id] ? prepareEnglish(templatesEnglish[e.id]) : undefined,
   caseIds: CASE_LINKS[e.id] ?? [],
   source: 'template-sav-ecc',
 }));

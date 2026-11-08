@@ -13,7 +13,7 @@ export function InternalMessageCard({ message }: { message: InternalMessage }) {
     <article className="card internal-card">
       <header className="card-head">
         <div className="card-kicker">
-          <span>Message interne → {getRole(message.to)?.label}</span>
+          <span>Internal message → {getRole(message.to)?.label}</span>
         </div>
         <h3 className="card-case">{message.title}</h3>
       </header>
@@ -21,16 +21,16 @@ export function InternalMessageCard({ message }: { message: InternalMessage }) {
       <footer className="card-foot">
         <div className="card-foot-info">
           {missing.length > 0 ? (
-            <span className="warn-text">Copie bloquée — à renseigner : {missing.map(variableLabel).join(', ')}</span>
+            <span className="warn-text">Copy blocked — fill in: {missing.map(variableLabel).join(', ')}</span>
           ) : (
-            <span className="ok-text">Prêt à envoyer</span>
+            <span className="ok-text">Ready to send</span>
           )}
         </div>
         <CopyButton
           text={renderTemplate(message.message, vars, required)}
-          label="Copier le message interne"
+          label="Copy the message"
           disabled={missing.length > 0}
-          disabledReason={`Renseigne d'abord : ${missing.map(variableLabel).join(', ')}`}
+          disabledReason={`Fill in first: ${missing.map(variableLabel).join(', ')}`}
         />
       </footer>
     </article>

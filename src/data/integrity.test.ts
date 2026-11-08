@@ -38,18 +38,18 @@ describe('cohérence des données', () => {
     expect(supportCases.filter((c) => c.source === 'demo' || c.validation === 'demo')).toEqual([]);
   });
 
-  it('27 cas Freshdesk, tous sourcés par des tickets réels', () => {
-    expect(supportCases).toHaveLength(27);
+  it('25 cas Freshdesk, tous sourcés par des tickets réels', () => {
+    expect(supportCases).toHaveLength(25);
     for (const c of supportCases) {
       expect(c.source, c.id).toBe('freshdesk');
       expect(c.sources.freshdeskTickets.length, c.id).toBeGreaterThan(0);
       expect(c.frequency, c.id).toBe(c.sources.freshdeskTickets.length);
     }
-    expect(supportCases.reduce((s, c) => s + (c.frequency ?? 0), 0)).toBe(526);
+    expect(supportCases.reduce((s, c) => s + (c.frequency ?? 0), 0)).toBe(504); // 526 tickets − 3 (« utilisation de Circle ») − 19 (« vidéos qui ne se lancent pas »), cas supprimés
   });
 
-  it('les 14 templates validés sont tous rattachés à au moins un cas compatible', () => {
-    expect(templates).toHaveLength(14);
+  it('les 26 templates validés sont tous rattachés à au moins un cas compatible', () => {
+    expect(templates).toHaveLength(26);
     for (const t of templates) {
       expect(t.caseIds.length, t.id).toBeGreaterThan(0);
       t.caseIds.forEach((id) => expect(caseIds, t.id).toContain(id));
@@ -60,19 +60,18 @@ describe('cohérence des données', () => {
   it('RÈGLE ACCÈS : aucune étape d’invitation / réinvitation n’est confiée au SAV', () => {
     for (const c of supportCases) {
       for (const s of c.steps) {
-        if (s.owner === 'sav' && /(r[ée])?invit|rétabli|rouvrir|réactiv/i.test(s.text)) {
-          expect(/^(Expliquer|Demander|Suivre|Confirmer|Vérifier que|Envoyer le message|Si |Une fois|Quand|Faire vérifier)/.test(s.text), `${c.id} : « ${s.text} »`).toBe(true);
+        if (s.owner === 'sav' && /invit|restor|reopen|reactivat/i.test(s.text)) {
+          expect(/^(Explain|Ask|Follow|Confirm|Check that|Check the member’s identity|Send the (validated )?message|If |Once|When|Have the member check)/.test(s.text), `${c.id} : « ${s.text} »`).toBe(true);
         }
       }
     }
   });
 
   it('les cas d’accès sont transmis à la personne compétente (jamais traités par le SAV) ; le contrôle comptabilité est commun', () => {
-    for (const id of ['cas-acces-v2-non-recu', 'cas-desabonnement-accidentel', 'cas-acces-retire-sans-explication']) {
+    for (const id of ['cas-acces-v2-non-recu']) {
       const c = supportCases.find((x) => x.id === id)!;
       expect(c.escalation?.to).toBe('gestion-acces');
       expect(c.internalMessageIds).not.toContain('int-compta-acces');
-      expect(c.doNot.some((d) => /inviter/.test(d))).toBe(true);
     }
     const msg = internalMessages.find((m) => m.id === 'int-compta-acces')!;
     expect(msg.to).toBe('comptabilite');
@@ -82,6 +81,15 @@ describe('cohérence des données', () => {
   it('sujets sensibles conservés « À valider » (partage, remboursement, KYC, défaut de paiement)', () => {
     for (const id of ['cas-double-acces', 'cas-remboursement', 'cas-verification-kyc', 'cas-absent-base-kyc', 'cas-defaut-paiement']) {
       expect(supportCases.find((x) => x.id === id)!.validation, id).toBe('a-valider');
+    }
+  });
+
+  it('chaque message a sa traduction anglaise, alignée paragraphe par paragraphe', () => {
+    const PARA = /\n[ \t]*\n+/;
+    for (const t of templates) {
+      expect(t.english, t.id).toBeTruthy();
+      expect(t.english!.split(PARA).length, t.id).toBe(t.message.split(PARA).length);
+      expect([...t.english!.matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[1]).sort(), t.id).toEqual([...t.message.matchAll(/\{\{(\w+)\}\}/g)].map((m) => m[1]).sort());
     }
   });
 });

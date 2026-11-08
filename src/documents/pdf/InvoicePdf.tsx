@@ -11,14 +11,24 @@ import { pdfStyles as s } from './theme';
  * Facture au format du modèle ECC / BB. Le même composant sert à l'aperçu de
  * l'application et au fichier téléchargé : ce que l'on voit est ce que l'on obtient.
  */
-export function InvoicePdf({ data }: { data: InvoiceData }) {
+export interface InvoicePdfVariant {
+  /** Titre complet (remplace « FACTURE #… »). */
+  title: string;
+  subtitle?: string;
+  titleSize?: number;
+  /** Lignes du bloc destinataire (remplacent celles calculées depuis le client). */
+  recipientLines?: string[];
+  documentTitle?: string;
+}
+
+export function InvoicePdf({ data, variant }: { data: InvoiceData; variant?: InvoicePdfVariant }) {
   const c = data.client;
   const t = data.totals;
   const cur = data.currency;
   const money = (v: bigint) => formatMoneyCompact(v, cur);
   const hasVat = t.groups.some((g) => g.rateBp > 0);
 
-  const recipient = [
+  const computedRecipient = [
     c.company,
     clientDisplayName(c),
     c.address,
@@ -29,6 +39,7 @@ export function InvoicePdf({ data }: { data: InvoiceData }) {
   ]
     .map((l) => (l || '').trim())
     .filter(Boolean);
+  const recipient = variant?.recipientLines ?? computedRecipient;
 
   const rows = t.lines.map((l) => ({
     description: l.quantityMilli === 1000n ? l.description : `${l.description} (× ${formatQuantity(l.quantityMilli)})`,
@@ -46,10 +57,10 @@ export function InvoicePdf({ data }: { data: InvoiceData }) {
   ];
 
   return (
-    <Document title={`Facture ${data.number}`} author={brandName(data.issuer)} creator="ECC Support Hub" producer="ECC Support Hub" language="fr-FR">
+    <Document title={variant?.documentTitle ?? `Facture ${data.number}`} author={brandName(data.issuer)} creator="ECC Support Hub" producer="ECC Support Hub" language="fr-FR">
       <Page size="A4" style={s.page}>
         <EccBands />
-        <EccHeader title={`${T.title} #${data.number || '—'}`} logo={resolveLogo(data.issuer.logoDataUrl)} />
+        <EccHeader title={variant?.title ?? `${T.title} #${data.number || '—'}`} subtitle={variant?.subtitle} titleSize={variant?.titleSize} logo={resolveLogo(data.issuer.logoDataUrl)} />
         <Rule />
         <EccParties
           recipient={{ label: T.recipientLabel, lines: recipient }}

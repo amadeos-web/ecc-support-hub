@@ -28,8 +28,8 @@ export type OptionalIssuerField = 'postalCode' | 'companyNumber' | 'vatNumber';
 
 /** Champs obligatoires : raison sociale et adresse. Les autres mentions ne sont imprimées que si elles sont renseignées. */
 export const ISSUER_REQUIRED: { key: Exclude<keyof IssuerProfile, 'notApplicable'>; label: string; canBeNA?: boolean }[] = [
-  { key: 'name', label: 'Raison sociale' },
-  { key: 'address', label: 'Adresse' },
+  { key: 'name', label: 'Company name' },
+  { key: 'address', label: 'Address' },
 ];
 
 /** Une valeur entre crochets = placeholder non personnalisé. */
@@ -50,9 +50,9 @@ export function issuerErrors(p: IssuerProfile): Record<string, string> {
     const v = (p[key] ?? '').trim();
     const na = canBeNA && p.notApplicable?.[key as OptionalIssuerField];
     if (na) continue;
-    if (!v) errors[`issuer.${key}`] = `Émetteur : ${label} manquant${canBeNA ? ' (ou cocher « non applicable »)' : ''}`;
-    else if (isPlaceholder(v)) errors[`issuer.${key}`] = `Émetteur : ${label} à personnaliser (valeur de démonstration)`;
+    if (!v) errors[`issuer.${key}`] = `Issuer: ${label} missing${canBeNA ? ' (or tick “not applicable”)' : ''}`;
+    else if (isPlaceholder(v)) errors[`issuer.${key}`] = `Issuer: ${label} must be customised (demo value)`;
   }
-  if (p.email.trim() && isPlaceholder(p.email)) errors['issuer.email'] = 'Émetteur : email à personnaliser ou à vider';
+  if (p.email.trim() && isPlaceholder(p.email)) errors['issuer.email'] = 'Issuer: email must be customised or cleared';
   return errors;
 }

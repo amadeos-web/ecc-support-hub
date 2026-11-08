@@ -1133,3 +1133,41 @@ h2 { font-size: 19px; }
 .field.is-invalid .input, .input.has-error, .field.is-invalid input { border-color: var(--accent-hi); box-shadow: 0 1px 0 0 var(--accent-hi); }
 .field-error { color: var(--accent-hi); font-size: 12.5px; margin-top: 4px; }
 .confirm-box.is-invalid { border-left-color: var(--accent-hi); }
+
+/* Interface en anglais, messages aux membres en français : repère discret. */
+.rm-kyc-label { margin-top: 18px; }
+.rm-lead { display: grid; gap: 16px; }
+.rm-fields-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 900px) { .rm-fields-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .rm-fields-4 { grid-template-columns: 1fr; } }
+.rm-lead-msg { display: grid; gap: 10px; }
+
+/* Vue bilingue : FR (envoyé) à gauche, EN (information) à droite, paragraphes alignés. */
+.template-bi { background: var(--bg-elev); border-radius: 6px; padding: 12px 14px; display: grid; gap: 10px; }
+.template-bi.is-clamped { max-height: 260px; overflow: hidden; -webkit-mask-image: linear-gradient(180deg, #000 70%, transparent); mask-image: linear-gradient(180deg, #000 70%, transparent); }
+.template-bi-head, .template-bi-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; }
+.template-bi-head { font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-3); font-weight: 600; }
+.template-para { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font); font-size: 13.5px; line-height: 1.6; color: var(--text); }
+.template-para.is-en { color: var(--text-3); }
+@media (max-width: 700px) {
+  .template-bi-head { display: none; }
+  .template-bi-row { grid-template-columns: 1fr; gap: 4px; }
+  .template-para.is-en { font-size: 12.5px; padding-left: 10px; border-left: 2px solid var(--border); }
+}
+
+/* Page « Resources » : documents à partager avec les membres. */
+.resource-list { display: grid; gap: 16px; max-width: 760px; }
+.resource-card { flex-direction: row; gap: 18px; align-items: stretch; }
+.resource-cover { width: 120px; height: auto; border-radius: 6px; border: 1px solid var(--border); align-self: flex-start; }
+.resource-body { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 0; }
+.resource-body .card-foot { margin-top: auto; }
+@media (max-width: 560px) { .resource-card { flex-direction: column; } .resource-cover { width: 100%; } }
+
+/* Facture simplifiée : 5 champs. */
+.simple-invoice { display: grid; gap: 16px; padding: 16px; }
+.simple-invoice .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.simple-invoice textarea.input { resize: vertical; min-height: 96px; line-height: 1.5; font-family: inherit; }
+@media (max-width: 560px) { .simple-invoice .field-row { grid-template-columns: 1fr; } }
+.vat-toggle { color: var(--text-2); font-size: 13px; }
+.seg { display: flex; gap: 8px; }
+.bank-details summary { cursor: pointer; color: var(--text-2); font-size: 13px; }

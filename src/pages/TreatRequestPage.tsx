@@ -9,7 +9,7 @@ export function TreatRequestPage({ caseId }: { caseId?: string }) {
     return (
       <div className="page page-case">
         <a className="back-link" href={href('accueil')}>
-          ← Autre demande
+          ← Another request
         </a>
         <GuidedCase key={selected.id} supportCase={selected} />
       </div>
@@ -26,7 +26,7 @@ function TreatHome() {
   return (
     <div className="page treat-home">
       <section className="treat-hero">
-        <h1>Que demande le membre ?</h1>
+        <h1>What is the member asking for?</h1>
       </section>
 
       {sections.map(({ cat, cases }) => (
@@ -35,7 +35,7 @@ function TreatHome() {
             <span className="cs-section-title">
               {cat.icon} {cat.label}
             </span>
-            <span className="cs-section-count">{cases.length} cas</span>
+            <span className="cs-section-count">{cases.length} {cases.length === 1 ? 'case' : 'cases'}</span>
           </h2>
           <p className="cs-section-hint">{cat.hint}</p>
           <ul className="case-list">

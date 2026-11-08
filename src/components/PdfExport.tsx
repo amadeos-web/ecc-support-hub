@@ -25,7 +25,7 @@ export function usePdfExport() {
       setResult({ fileName, blob, url, delivery });
       return delivery;
     } catch {
-      setResult({ fileName, blob: new Blob(), url: '', delivery: null, error: 'La génération du PDF a échoué. Réessaie ; si le problème persiste, recharge la page.' });
+      setResult({ fileName, blob: new Blob(), url: '', delivery: null, error: 'PDF generation failed. Try again; if the problem persists, reload the page.' });
       return null;
     } finally {
       setBusy(false);
@@ -55,12 +55,12 @@ export function PdfExportStatus({ result, onAgain, onClose }: { result: Result; 
   const message = result.error
     ? result.error
     : d?.status === 'saved'
-      ? `PDF prêt : ${result.fileName}`
+      ? `PDF ready: ${result.fileName}`
       : d?.status === 'downloaded'
-        ? `PDF généré et téléchargé : ${result.fileName}`
+        ? `PDF generated and downloaded: ${result.fileName}`
         : d?.status === 'declined'
-          ? `Téléchargement annulé. Le PDF « ${result.fileName} » reste disponible ci-dessous.`
-          : `Le téléchargement automatique n’a pas abouti. Le PDF « ${result.fileName} » reste disponible ci-dessous.`;
+          ? `Download cancelled. The PDF “${result.fileName}” is still available below.`
+          : `The automatic download did not go through. The PDF “${result.fileName}” is still available below.`;
   const ok = !result.error && (d?.status === 'saved' || d?.status === 'downloaded');
   return (
     <div className={`notice ${ok ? 'notice-ok' : 'notice-error'}`} role="status">
@@ -68,14 +68,14 @@ export function PdfExportStatus({ result, onAgain, onClose }: { result: Result; 
       {!result.error && (
         <span className="notice-actions">
           <button type="button" className="rm-link" onClick={onAgain}>
-            Télécharger à nouveau
+            Download again
           </button>
           <a className="rm-link" href={result.url} target="_blank" rel="noopener noreferrer">
-            Ouvrir le PDF
+            Open the PDF
           </a>
         </span>
       )}
-      <button type="button" className="notice-close" onClick={onClose} aria-label="Fermer">
+      <button type="button" className="notice-close" onClick={onClose} aria-label="Close">
         ✕
       </button>
     </div>

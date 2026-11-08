@@ -1,78 +1,119 @@
-import { Document, Page, Text, View } from '@react-pdf/renderer';
-import type { AttestationModel, QuoteModel } from '../models';
-import type { IssuerProfile } from '../core/issuer';
-import { issuerValue } from '../core/issuer';
-import { addDays, formatDate, formatMoney, lineTotalHT, totalsFromLines } from '../../lib/documentCalc';
-import { attestationTemplate as A, quoteTemplate as Q } from '../../data/otherDocsTemplate';
-import { attestationParagraphs } from '../otherDocs';
-import { EccBands, EccFooter, EccGrandTotal, EccHeader, EccParties, EccSummary, EccTable, Rule, brandName, footerText, issuerLines, resolveLogo } from './blocks';
+import { Document, Image, Page, Text, View } from '@react-pdf/renderer';
+import { blockLines, quoteTotals, type SimpleQuote } from '../quote/model';
+import { formatMoneyCompact, formatRateNumber } from '../core/money';
+import { formatDateFR } from '../core/dates';
+import { quoteTemplate as Q } from '../../data/quoteTemplate';
+import { EccBands, EccGrandTotal, Rule, resolveLogo } from './blocks';
 import { pdfStyles as s, LAYOUT } from './theme';
 
-/** Les espaces insécables de l'Intl ne sont pas dans les polices embarquées. */
-const money = (v: number, cur: string) => formatMoney(v, cur).replace(/[\u202f\u00a0]/g, ' ');
-
-/** Devis : même modèle visuel que la facture (en-tête, parties, tableau, totaux, logo ECC). */
-export function QuotePdf({ m, issuer }: { m: QuoteModel; issuer: IssuerProfile }) {
-  const totals = totalsFromLines(m.lignes);
-  const lines = m.lignes.filter((l) => l.label.trim());
-  const validUntil = m.dateDevis ? formatDate(addDays(m.dateDevis, m.validiteJours || 0)) : '';
-  const recipient = [m.societe, `${m.prenom} ${m.nom}`, m.adresse, m.pays, m.email, m.numeroTva.trim() && `TVA : ${m.numeroTva.trim()}`].map((l) => (l || '').trim()).filter(Boolean);
-  const rows = lines.map((l) => ({
-    description: l.quantity === 1 ? l.label : `${l.label} (× ${l.quantity})`,
-    price: money(l.unitPriceHT, m.devise),
-    amount: money(lineTotalHT(l), m.devise),
-  }));
-  const summary = [
-    { label: Q.totalHT, value: money(totals.ht, m.devise) },
-    ...totals.byRate.map((r) => ({ label: `TVA ${r.rate} %`, value: money(r.tva, m.devise) })),
-  ];
-  const mention = [validUntil && `${Q.validUntil} ${validUntil}`, m.notes.trim()].filter(Boolean).join('\n');
+/**
+ * Devis « prise en charge » (modèle ECC fourni) : même identité visuelle que la facture —
+ * bandeaux, titre serif espacé, logo, filets, tableau, total fort — avec organisme financeur,
+ * mention de prise en charge et coordonnées bancaires.
+ */
+export function QuotePdf({ q }: { q: SimpleQuote }) {
+  const t = quoteTotals(q);
+  const money = (c: bigint) => formatMoneyCompact(c, 'EUR');
+  const hasVat = t.totalTVA > 0n;
+  const ht = money(t.totalHT);
+  const amount = money(t.totalTTC);
+  const recipient = blockLines(q.recipient);
+  const funder = blockLines(q.funder);
+  const issuerL = blockLines(q.issuer);
+  const fill = (t: string, map: Record<string, string>) => t.replace(/\{(\w+)\}/g, (_, k) => map[k] ?? '');
+  const muted = { color: '#8A8A8A' } as const;
+  const box = { backgroundColor: '#F4F4F4', borderRadius: 4, paddingHorizontal: 14, paddingVertical: 11 } as const;
   return (
-    <Document title={`Devis ${m.numeroDevis}`} author={brandName(issuer)} creator="ECC Support Hub" producer="ECC Support Hub" language="fr-FR">
+    <Document title={`Devis ${recipient[0] ?? ''}`} author={Q.footerLeft} creator="ECC Support Hub" producer="ECC Support Hub" language="fr-FR">
       <Page size="A4" style={s.page}>
         <EccBands />
-        <EccHeader title={m.numeroDevis.trim() ? `${Q.title} #${m.numeroDevis.trim()}` : Q.title} logo={resolveLogo(issuer.logoDataUrl)} />
-        <Rule />
-        <EccParties
-          recipient={{ label: Q.recipientLabel, lines: recipient }}
-          issuer={{ label: Q.issuerLabel, lines: issuerLines(issuer) }}
-          aside={m.dateDevis ? <Text style={s.issuedOn}>{`${Q.dateLabel} ${formatDate(m.dateDevis)}`}</Text> : <Text style={s.issuedOn}> </Text>}
-        />
-        <Rule />
-        <EccTable columns={Q.columns} rows={rows} />
-        <EccSummary rows={summary} after={<EccGrandTotal text={`${Q.grandTotal} : ${money(totals.ttc, m.devise)}`} mention={mention || undefined} />} />
-        <Text style={{ fontSize: 10.5, letterSpacing: 0.3, marginTop: 36, paddingLeft: LAYOUT.inset }}>{Q.signature}</Text>
-        <EccFooter text={footerText(issuer)} />
-      </Page>
-    </Document>
-  );
-}
-
-/** Attestation de suivi : même identité visuelle, texte repris de l'aperçu. */
-export function AttestationPdf({ m, issuer }: { m: AttestationModel; issuer: IssuerProfile }) {
-  const t = attestationParagraphs(m, issuerValue(issuer, 'name') || brandName(issuer));
-  const para = { fontSize: 12.5, letterSpacing: 0.35, marginBottom: 18, paddingLeft: LAYOUT.inset } as const;
-  return (
-    <Document title={`Attestation ${m.prenom} ${m.nom}`} author={brandName(issuer)} creator="ECC Support Hub" producer="ECC Support Hub" language="fr-FR">
-      <Page size="A4" style={s.page}>
-        <EccBands />
-        <EccHeader title={A.title} logo={resolveLogo(issuer.logoDataUrl)} />
-        <Rule />
-        <View style={{ paddingLeft: LAYOUT.inset, paddingTop: 22, paddingBottom: 18 }}>
-          <Text style={s.label}>{A.heading.toUpperCase()}</Text>
+        <View style={[s.header, { marginBottom: 14 }]}>
+          <View>
+            <Text style={s.title}>{Q.title}</Text>
+            <Text style={{ fontFamily: s.title.fontFamily, fontSize: 9.5, letterSpacing: 2.6, marginTop: 8 }}>{Q.subtitle}</Text>
+          </View>
+          {resolveLogo() ? <Image src={resolveLogo()!} style={s.logo} /> : <View />}
         </View>
-        <Text style={para}>{t.intro}</Text>
-        <View style={{ marginBottom: 6 }}>
-          {t.details.map((d) => (
-            <Text key={d} style={{ ...para, marginBottom: 6 }}>
-              {d}
-            </Text>
+        <Rule />
+        <View style={[s.parties, { paddingBottom: 16 }]}>
+          <View style={[s.partyRecipient, { width: 182 }]}>
+            <Text style={s.label}>{Q.recipientLabel}</Text>
+            {recipient.map((l, k) => (
+              <Text key={k} style={s.partyLine}>{l}</Text>
+            ))}
+          </View>
+          <View style={s.partyIssuer}>
+            <Text style={s.label}>{Q.funderLabel}</Text>
+            {funder.map((l, k) => (
+              <Text key={k} style={s.partyLine}>{l}</Text>
+            ))}
+          </View>
+          <View style={[s.partyDate, { width: 112 }]}>
+            <Text style={s.issuedOn}>{`${Q.issuedOnLabel} ${formatDateFR(q.issueDate) || '—'}`}</Text>
+          </View>
+        </View>
+        <Rule />
+        <View style={{ flexDirection: 'row', paddingLeft: LAYOUT.inset, paddingVertical: 12 }}>
+          <Text style={[s.label, muted, { fontSize: 10, width: 86, marginBottom: 0 }]}>{Q.issuerLabel}</Text>
+          <View style={{ flex: 1 }}>
+            {issuerL.map((l, k) => (
+              <Text key={k} style={[s.partyLine, { fontSize: 10 }]}>{l}</Text>
+            ))}
+          </View>
+        </View>
+        <Rule />
+        <View style={[s.tableHead, { marginTop: 12, marginBottom: 12 }]}>
+          <Text style={[s.th, s.colDesc]}>{Q.columns.description}</Text>
+          <Text style={[s.th, s.colPrice]}>{Q.columns.price}</Text>
+          <Text style={[s.th, s.colAmount, s.thAmount]}>{Q.columns.amount}</Text>
+        </View>
+        <View style={[s.row, s.banded, { minHeight: 46 }]}>
+          <Text style={[s.cell, s.colDesc]}>{q.description.trim()}</Text>
+          <Text style={[s.cell, s.colPrice]}>{ht}</Text>
+          <Text style={[s.cell, s.colAmount]}>{ht}</Text>
+        </View>
+        {(hasVat
+          ? [
+              [Q.totalHTLabel, ht],
+              [Q.vatRateLabel, formatRateNumber(t.groups[0].rateBp)],
+              [Q.vatAmountLabel, money(t.totalTVA)],
+            ]
+          : [[Q.totalLabel, amount]]
+        ).map(([label, value], k) => (
+          <View key={label} style={[s.sumRow, { minHeight: hasVat ? 30 : 40 }, ...(k === 1 ? [s.banded] : [])]}>
+            <View style={{ flex: 1 }} />
+            <Text style={s.sumLabel}>{label}</Text>
+            <Text style={s.sumValue}>{value}</Text>
+          </View>
+        ))}
+        <View style={[box, { marginTop: 4 }]} wrap={false}>
+          <Text style={{ fontFamily: s.title.fontFamily, fontSize: 10.5, letterSpacing: 0.6, marginBottom: 4 }}>{Q.fundingTitle}</Text>
+          <Text style={{ fontSize: 9.5, letterSpacing: 0.3 }}>{fill(Q.fundingText, { montant: amount, financeur: funder[0] ?? '—' })}</Text>
+        </View>
+        {!hasVat && <Text style={[{ fontSize: 8.5, marginTop: 10, paddingLeft: LAYOUT.inset }, muted]}>{Q.vatMention}</Text>}
+        <View style={{ marginTop: 14 }} wrap={false}>
+          <EccGrandTotal text={`${Q.grandTotalLabel} : ${amount}`} />
+        </View>
+        <View style={[box, { marginTop: 14 }]} wrap={false}>
+          <Text style={{ fontFamily: s.title.fontFamily, fontSize: 9.5, letterSpacing: 1.4, marginBottom: 7 }}>{Q.bankTitle}</Text>
+          {([
+            [Q.bankLabels.holder, q.bank.holder],
+            [Q.bankLabels.iban, q.bank.iban],
+            [Q.bankLabels.bic, q.bank.bic],
+            [Q.bankLabels.bank, q.bank.bank],
+          ] as const).map(([k, v]) => (
+            <View key={k} style={{ flexDirection: 'row', marginBottom: 4 }}>
+              <Text style={[{ width: 92, fontSize: 8, letterSpacing: 1.2, paddingTop: 1 }, muted]}>{k}</Text>
+              <Text style={{ flex: 1, fontSize: 9.5, letterSpacing: 0.3 }}>{v.trim()}</Text>
+            </View>
           ))}
         </View>
-        <Text style={{ ...para, marginTop: 14 }}>{t.closing}</Text>
-        <Text style={{ ...para, marginTop: 28 }}>{t.madeOn}</Text>
-        <EccFooter text={footerText(issuer)} />
+        <View style={s.footerContent} fixed>
+          <Text style={s.footerText}>{Q.footerLeft}</Text>
+          <Text style={[{ fontSize: 8, letterSpacing: 0.4 }, muted]}>{fill(Q.footerRight, { beneficiaire: recipient[0] ?? '—' })}</Text>
+        </View>
       </Page>
     </Document>
   );
 }
+

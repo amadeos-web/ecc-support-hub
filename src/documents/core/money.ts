@@ -14,32 +14,32 @@ const clean = (s: string) => s.replace(/[\s  €]/g, '').replace(',', '.');
 /** "1 997,00" / "1997.5" / "1997" → centimes. 2 décimales maximum. */
 export function parseAmount(input: string): ParseResult<Cents> {
   const s = clean(input);
-  if (s === '') return { ok: false, error: 'Montant requis' };
-  if (/^\d+\.\d{3,}$/.test(s)) return { ok: false, error: '2 décimales maximum' };
+  if (s === '') return { ok: false, error: 'Amount required' };
+  if (/^\d+\.\d{3,}$/.test(s)) return { ok: false, error: '2 decimals maximum' };
   const m = s.match(/^(\d+)(?:\.(\d{1,2}))?$/);
-  if (!m) return { ok: false, error: 'Montant invalide (ex. 1997,00)' };
+  if (!m) return { ok: false, error: 'Invalid amount (e.g. 1997,00)' };
   return { ok: true, value: BigInt(m[1]) * 100n + BigInt((m[2] ?? '').padEnd(2, '0')) };
 }
 
 /** Quantité → millièmes (1,5 → 1500). Strictement positive, 3 décimales maximum. */
 export function parseQuantity(input: string): ParseResult<bigint> {
   const s = clean(input);
-  if (s === '') return { ok: false, error: 'Quantité requise' };
+  if (s === '') return { ok: false, error: 'Quantity required' };
   const m = s.match(/^(\d+)(?:\.(\d{1,3}))?$/);
-  if (!m) return { ok: false, error: 'Quantité invalide' };
+  if (!m) return { ok: false, error: 'Invalid quantity' };
   const v = BigInt(m[1]) * 1000n + BigInt((m[2] ?? '').padEnd(3, '0'));
-  if (v <= 0n) return { ok: false, error: 'La quantité doit être supérieure à 0' };
+  if (v <= 0n) return { ok: false, error: 'Quantity must be greater than 0' };
   return { ok: true, value: v };
 }
 
 /** "21" / "5,5" → points de base. Entre 0 et 100 %, 2 décimales maximum. */
 export function parseRate(input: string): ParseResult<RateBp> {
   const s = clean(input).replace('%', '');
-  if (s === '') return { ok: false, error: 'Taux de TVA à choisir' };
+  if (s === '') return { ok: false, error: 'Choose a VAT rate' };
   const m = s.match(/^(\d{1,3})(?:\.(\d{1,2}))?$/);
-  if (!m) return { ok: false, error: 'Taux invalide (ex. 21)' };
+  if (!m) return { ok: false, error: 'Invalid rate (e.g. 21)' };
   const bp = Number(m[1]) * 100 + Number((m[2] ?? '').padEnd(2, '0'));
-  if (bp > 10000) return { ok: false, error: 'Le taux doit être compris entre 0 et 100 %' };
+  if (bp > 10000) return { ok: false, error: 'Rate must be between 0 and 100 %' };
   return { ok: true, value: bp };
 }
 

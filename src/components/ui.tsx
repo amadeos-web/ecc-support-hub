@@ -18,26 +18,26 @@ import { copyText } from '../lib/clipboard';
 export function DemoBadge({ source = 'demo' }: { source?: DataSource }) {
   if (source === 'template-sav-ecc')
     return (
-      <span className="badge badge-source" title="Issu du document officiel « TEMPLATE SAV ECC »">
+      <span className="badge badge-source" title="From the official “TEMPLATE SAV ECC” document">
         Template SAV ECC
       </span>
     );
   if (source === 'instruction-ecc')
     return (
-      <span className="badge badge-source" title="Règle donnée explicitement par l’équipe ECC">
-        Instruction ECC
+      <span className="badge badge-source" title="Rule given explicitly by the ECC team">
+        ECC instruction
       </span>
     );
   if (source === 'freshdesk')
     return (
-      <span className="badge badge-source" title="Établi à partir de l’historique Freshdesk">
+      <span className="badge badge-source" title="Based on the Freshdesk history">
         Freshdesk
       </span>
     );
   if (source !== 'demo') return null;
   return (
-    <span className="badge badge-demo" title="Donnée fictive de démonstration">
-      Démo
+    <span className="badge badge-demo" title="Fictional demo data">
+      Demo
     </span>
   );
 }
@@ -45,8 +45,8 @@ export function DemoBadge({ source = 'demo' }: { source?: DataSource }) {
 export function HandlingBadge({ handling, long = false }: { handling?: Handling; long?: boolean }) {
   if (!handling)
     return (
-      <span className="badge badge-handling h-unknown" title="Qui doit intervenir : non déterminé">
-        {long ? 'Qui doit intervenir : à valider' : 'Responsable à valider'}
+      <span className="badge badge-handling h-unknown" title="Who needs to step in: not determined">
+        {long ? 'Who needs to step in: to validate' : 'Owner to validate'}
       </span>
     );
   const h = handlingInfo[handling];
@@ -72,7 +72,7 @@ export function ValidationBadge({ status }: { status: ValidationStatus }) {
   if (status === 'valide') return null;
   return (
     <span className={`badge badge-validation v-${status}`} title={validationInfo[status].description}>
-      {status === 'a-valider' ? '⚠ À VALIDER' : validationInfo[status].label}
+      {status === 'a-valider' ? '⚠ TO VALIDATE' : validationInfo[status].label}
     </span>
   );
 }
@@ -87,7 +87,7 @@ export function CategoryTag({ id }: { id: CategoryId }) {
 
 export function CopyButton({
   text,
-  label = 'Copier',
+  label = 'Copy',
   className = 'btn btn-primary',
   disabled = false,
   disabledReason,
@@ -115,7 +115,7 @@ export function CopyButton({
       title={disabled ? disabledReason : undefined}
       aria-live="polite"
     >
-      {state === 'ok' ? 'Copié ✓' : state === 'error' ? 'Échec de la copie' : label}
+      {state === 'ok' ? 'Copied ✓' : state === 'error' ? 'Copy failed' : label}
     </button>
   );
 }
@@ -129,7 +129,7 @@ export function StarButton({ active, onToggle }: { active: boolean; onToggle: ()
         e.stopPropagation();
         onToggle();
       }}
-      title={active ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+      title={active ? 'Remove from favourites' : 'Add to favourites'}
       aria-pressed={active}
     >
       {active ? '★' : '☆'}
@@ -175,7 +175,7 @@ export function ConditionList({ items }: { items: { if: string; then: string }[]
     <ul className="conditions">
       {items.map((c) => (
         <li key={c.if}>
-          <span className="cond-if">Si</span> {c.if}
+          <span className="cond-if">If</span> {c.if}
           <span className="cond-arrow">→</span>
           <span className="cond-then">{c.then}</span>
         </li>

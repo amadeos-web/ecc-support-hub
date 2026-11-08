@@ -29,6 +29,6 @@ export function MemberVarsProvider({ children }: { children: ReactNode }) {
 
 export function useMemberVars() {
   const ctx = useContext(MemberVarsContext);
-  if (!ctx) throw new Error('useMemberVars doit être utilisé dans MemberVarsProvider');
+  if (!ctx) throw new Error('useMemberVars must be used inside MemberVarsProvider');
   return ctx;
 }

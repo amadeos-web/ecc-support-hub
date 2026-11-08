@@ -1,14 +1,15 @@
 import type { TemplateVariable } from '../data/types';
 
 export const TEMPLATE_VARIABLES: { key: TemplateVariable; label: string; placeholder: string }[] = [
-  { key: 'prenom', label: 'Prénom du membre', placeholder: 'Thomas' },
-  { key: 'nom', label: 'Nom', placeholder: 'Martin' },
+  { key: 'prenom', label: 'Member’s first name', placeholder: 'Thomas' },
+  { key: 'nom', label: 'Last name', placeholder: 'Martin' },
   { key: 'email', label: 'Email', placeholder: 'thomas@exemple.com' },
-  { key: 'formation', label: 'Formation', placeholder: 'Nom de la formation' },
-  { key: 'montant', label: 'Montant', placeholder: '1 997 €' },
+  { key: 'formation', label: 'Course', placeholder: 'Course name (French)' },
+  { key: 'montant', label: 'Amount', placeholder: '1 997 €' },
   { key: 'date', label: 'Date', placeholder: '03/10/2026' },
-  { key: 'numero_facture', label: 'N° de facture', placeholder: 'ECC0174' },
-  { key: 'lien_invoice', label: "Lien de l'invoice", placeholder: 'https://…' },
+  { key: 'numero_facture', label: 'Invoice number', placeholder: 'ECC0174' },
+  { key: 'lien_invoice', label: 'Invitation link (0.00 USD invoice)', placeholder: 'https://…' },
+  { key: 'raison_retrait', label: 'Reason given by the team (write it in French)', placeholder: 'ex. ton abonnement a été résilié' },
 ];
 
 export const variableLabel = (key: string) => TEMPLATE_VARIABLES.find((v) => v.key === key)?.label ?? key;

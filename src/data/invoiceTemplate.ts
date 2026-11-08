@@ -1,6 +1,7 @@
 /**
  * Textes du modèle de facture ECC (repris du modèle Canva « FACTURATION ECC »).
  * Modifiables ici sans toucher au code du PDF.
+ * Tout ce qui est imprimé reste en français ; seul `paymentConfirmation` (case à cocher de l'agent) est en anglais.
  */
 export const invoiceTemplate = {
   title: 'FACTURE',
@@ -23,5 +24,5 @@ export const invoiceTemplate = {
   defaultDescription: 'Formation d’accompagnement Ecommerce Capital Club',
   /** Préfixes proposés pour les numéros (ECC0174, BB0173…). « Autre » permet un préfixe libre. */
   prefixes: ['ECC', 'BB'],
-  paymentConfirmation: 'Je confirme que le règlement intégral du client a bien été reçu.',
+  paymentConfirmation: 'I confirm that the customer’s full payment has been received.',
 };

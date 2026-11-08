@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="fr">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,14 +7,14 @@
   </head>
   <body>
     <div id="root"></div>
-    <noscript>ECC Support Hub nécessite JavaScript.</noscript>
+    <noscript>ECC Support Hub requires JavaScript.</noscript>
     <script>
       // Filet de sécurité : si l'application ne démarre pas, l'erreur s'affiche au lieu d'une page blanche.
       window.addEventListener('error', function (e) {
         var root = document.getElementById('root');
         if (root && !root.hasChildNodes()) {
           root.style.cssText = 'padding:24px;font:14px/1.5 system-ui,sans-serif;color:#ddd;background:#0a0a0b;min-height:100vh';
-          root.textContent = 'ECC Support Hub n’a pas pu démarrer : ' + (e.message || 'erreur de chargement') + (e.filename ? ' (' + e.filename + ')' : '');
+          root.textContent = 'ECC Support Hub could not start: ' + (e.message || 'loading error') + (e.filename ? ' (' + e.filename + ')' : '');
         }
       }, true);
     </script>
